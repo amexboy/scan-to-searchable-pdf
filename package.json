@@ -42,14 +42,16 @@
     "eslint-loader": "4.0.2",
     "native-ext-loader": "2.3.0",
     "node-sass": "4.14.1",
-    "vuetify": "^2.3.21",
     "nuxt": "^2.14.12",
     "roboto-fontface": "0.10.0",
     "sass-loader": "10.0.2",
     "vue-devtools": "5.1.4",
+    "vuetify": "^2.3.21",
     "webpack": "4.44.2",
     "webpack-node-externals": "2.5.2"
   },
   "dependencies": {
+    "@aws-sdk/client-textract": "^3.1.0",
+    "pdfkit": "^0.11.0"
   }
 }

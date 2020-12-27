@@ -23,6 +23,7 @@
         <v-list-item
           v-for="(item, i) in files"
           :key="i"
+          :disabled="!item.enabled"
           :to="item.isFile ? '/convert/' + item.filePath : '/browse/' + item.filePath"
         >
           <v-list-item-icon>
@@ -49,7 +50,8 @@ export default {
       path: './',
       externalContent: '',
       parents: [],
-      files: []
+      files: [],
+      allowedTypes: ['.png', '.jpg', '.jpeg']
     }
   },
   mounted () {
@@ -79,16 +81,18 @@ export default {
     },
     refresh () {
       const loadPath = this.path
+      const allowedTypes = this.allowedTypes
       // this.refresh()
       fs.promises.readdir(loadPath)
         // .then(dir => dir.read())
         .then(dirs => {
           return dirs
-            .filter(function (file) {
+            .filter(file => {
               return file.substring(0, 1) !== '.'
             })
             .map(function (file) {
               const filePath = path.join(loadPath, file)
+              const fileExt = path.extname(filePath) || ''
 
               return fs.promises.stat(filePath)
                 .then(stats => {
@@ -97,20 +101,25 @@ export default {
                     fileSize: stats.size,
                     isFile: stats.isFile(),
                     icon: stats.isFile() ? 'fa-file' : 'fa-folder',
-                    fileType: stats.isFile() ? 'File' : 'Directory',
+                    fileType: stats.isFile() ? fileExt : 'Directory',
+                    enabled: stats.isDirectory() || allowedTypes.includes(fileExt.toLowerCase()),
                     fileModified: stats.mtime.toLocaleString(),
                     filePath
                   })
                 })
-                .catch(e => ({
-                  fileName: file,
-                  fileSize: 0,
-                  isFile: false,
-                  icon: 'fa-file',
-                  fileType: 'Unknown',
-                  fileModified: 'N/A',
-                  filePath
-                }))
+                .catch(e => {
+                  console.log(e)
+                  return {
+                    fileName: file,
+                    fileSize: 0,
+                    isFile: false,
+                    icon: 'fa-file',
+                    fileType: 'Unknown',
+                    enabled: false,
+                    fileModified: 'N/A',
+                    filePath
+                  }
+                })
             })
         })
         .then(promises => Promise.all(promises))
