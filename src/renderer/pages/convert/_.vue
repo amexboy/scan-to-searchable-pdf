@@ -23,7 +23,11 @@
       <v-list-item>
         <v-btn color="red" text><v-icon>fa-times</v-icon> &nbsp; Cancel</v-btn>
         <v-spacer />
-        <v-btn color="primary" text @click="convert"><v-icon>fa-check</v-icon> &nbsp; Convert</v-btn>
+        <v-btn :loading="processing"
+               color="primary" text @click="convert"
+        >
+          <v-icon>fa-check</v-icon> &nbsp; Convert
+        </v-btn>
       </v-list-item>
     </v-list>
   </v-card-text>
@@ -31,7 +35,7 @@
 
 <script>
 import { remote } from 'electron'
-import { test } from '@/scripts/aws'
+import { processFile } from '@/scripts/aws'
 // const fs = remote.require('fs')
 const path = remote.require('path')
 const { dialog } = remote
@@ -39,6 +43,7 @@ const { dialog } = remote
 export default {
   data () {
     return {
+      processing: false,
       output: '',
       path: './',
       externalContent: '',
@@ -56,7 +61,17 @@ export default {
   },
   methods: {
     convert () {
-      test(this.path, this.output)
+      this.processing = true
+      processFile(this.path, this.output)
+        .then(res => {
+          this.processing = false
+          console.log(res)
+          this.$dialog.notify.success(`Processed ${this.path} file succesfully`)
+        })
+        .catch(err => {
+          this.processing = false
+          this.$dialog.notify.error(`Processing ${this.path} failed due to ${err}`)
+        })
     },
     splitPath (p) {
       console.log(p)

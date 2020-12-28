@@ -35,7 +35,8 @@ module.exports = {
     { ssr: true, src: '@/plugins/icons.js' }
   ],
   modules: [
-    '@nuxtjs/vuetify'
+    '@nuxtjs/vuetify',
+    ['vuetify-dialog/nuxt', { property: '$dialog' }]
   ],
   vuetify: {
     icons: {
