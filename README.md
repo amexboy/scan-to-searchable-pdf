@@ -2,6 +2,8 @@
 
 > Converts Images into searchable PDFs using AWS textract
 
+Add .env.development and .env.production files with BUCKET_NAME=<your bucket name> in src/renderer
+
 #### Build Setup
 
 ``` bash

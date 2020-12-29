@@ -8,7 +8,7 @@ const colors = require('vuetify/es5/util/colors').default
 module.exports = {
   ssr: false, // or 'universal'
   head: {
-    titleTemplate: '%s - PDF to Searchable Converter',
+    titleTemplate: 'PDF to Searchable Converter',
     title: process.env.npm_package_name || '',
     meta: [
       { charset: 'utf-8' },
@@ -36,6 +36,7 @@ module.exports = {
   ],
   modules: [
     '@nuxtjs/vuetify',
+    ['@nuxtjs/dotenv', { filename: `.env.${process.env.NODE_ENV}` }],
     ['vuetify-dialog/nuxt', { property: '$dialog' }]
   ],
   vuetify: {

@@ -43,9 +43,9 @@ const macOS = {
 
 module.exports = {
   asar: false,
-  productName: 'My browser',
-  appId: 'org.michalzarach.my-browser',
-  artifactName: 'my-browser-${version}.${ext}',
+  productName: 'Searchable PDF',
+  appId: 'com.amanu.upwork.searchable-pdf',
+  artifactName: 'searchable-pdf-${version}.${ext}',
   directories: {
     output: 'build'
   },

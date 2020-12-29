@@ -51,7 +51,7 @@ export default {
       externalContent: '',
       parents: [],
       files: [],
-      allowedTypes: ['.png', '.jpg', '.jpeg']
+      allowedTypes: ['.png', '.jpg', '.jpeg', '.pdf']
     }
   },
   mounted () {
