@@ -21,7 +21,7 @@
       </v-list-item>
 
       <v-list-item>
-        <v-btn color="red" text><v-icon>fa-times</v-icon> &nbsp; Cancel</v-btn>
+        <v-btn color="red" text @click="cancel"><v-icon>fa-times</v-icon> &nbsp; Cancel</v-btn>
         <v-spacer />
         <v-btn :loading="processing"
                color="primary" text @click="convert"
@@ -66,11 +66,11 @@ export default {
         .then(res => {
           this.processing = false
           console.log(res)
-          this.$dialog.notify.success(`Processed ${this.path} file succesfully`)
+          this.$dialog.notify.success(`Processed ${this.path} file succesfully`, { timeout: 0 })
         })
         .catch(err => {
           this.processing = false
-          this.$dialog.notify.error(`Processing ${this.path} failed due to ${err}`)
+          this.$dialog.notify.error(`Processing ${this.path} failed due to ${err}`, { timeout: 0 })
         })
     },
     splitPath (p) {
@@ -105,6 +105,9 @@ export default {
           console.log(p)
           this.output = p
         })
+    },
+    cancel () {
+      this.$router.push(`/browse/${path.dirname(this.path)}`)
     }
   }
 }

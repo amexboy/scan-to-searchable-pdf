@@ -57,6 +57,7 @@ export default {
   mounted () {
     if (this.$route.params.pathMatch) {
       this.path = this.$route.params.pathMatch
+      window.localStorage.setItem('start_path', this.path)
     }
     this.path = path.resolve(path.normalize(this.path))
     this.refresh()
