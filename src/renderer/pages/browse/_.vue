@@ -59,6 +59,10 @@ export default {
       this.path = this.$route.params.pathMatch
       window.localStorage.setItem('start_path', this.path)
     }
+    if (this.path === './') {
+      this.path = window.localStorage.getItem('start_path')
+    }
+
     this.path = path.resolve(path.normalize(this.path))
     this.refresh()
     this.splitPath(this.path)

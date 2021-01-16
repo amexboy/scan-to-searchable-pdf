@@ -16,6 +16,18 @@
         max-width="800"
         style="margin-top: -64px;"
       >
+        <v-tabs
+          background-color="transparent"
+          color="basil"
+          grow
+        >
+          <v-tab to="/browse/">
+            Browse
+          </v-tab>
+          <v-tab to="/tools/">
+            Continuous Process
+          </v-tab>
+        </v-tabs>
         <nuxt />
       </v-card>
     </v-card>
