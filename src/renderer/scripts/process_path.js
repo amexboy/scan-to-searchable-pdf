@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
-// import chokidar from 'chokidar'
-// import { process_file } from './process_file'
+import chokidar from 'chokidar'
+import { processFile } from './process_file'
 const allowedTypes = ['.png', '.jpg', '.jpeg', '.pdf']
 
 export default app => {
@@ -13,65 +13,42 @@ export default app => {
 
   function createWatcher (watchers, pathInfo) {
     const watchPath = pathInfo.path
-    const watcher = fs.watch(watchPath, { encoding: 'utf8', recursive: true }, (eventType, filename) => {
-      console.log(`Event ${eventType} for ${filename}`)
-      if (filename) {
-        const parent = path.dirname(filename)
-        if (validParent(pathInfo.searchName, parent) && allowedTypes.includes(path.extname(filename))) {
-          const moveToDir = path.join(parent, pathInfo.original)
-          processFile(filename, moveToDir)
+    const watcher = chokidar.watch(watchPath, {
+      ignored: new RegExp(`(^|[/\\\\])(${pathInfo.original})|(${pathInfo.result})[/\\\\]`)
+    })
+
+    watcher.on('add', async filePath => {
+      console.log(`Event for ${filePath}`)
+      if (filePath) {
+        const parent = path.dirname(filePath)
+        if (validParent(pathInfo.searchName, parent) && allowedTypes.includes(path.extname(filePath))) {
+          const moveTo = path.join(parent, pathInfo.original, path.basename(filePath))
+          const resultTo = path.join(parent, pathInfo.result, path.basename(filePath), '.pdf')
+
+          console.log(`going to process ${filePath} and going to move it to ${moveTo}`)
+          // maybe send some notifications
+          await fs.promises.mkdir(path.dirname(moveTo)).catch(err => console.log(err))
+          await fs.promises.mkdir(path.dirname(resultTo)).catch(err => console.log(err))
+
+          processFile(filePath, path.extname(filePath), resultTo)
+            .then(() => fs.promises.rename(filePath, moveTo))
+            .then(_ => {
+              app.context.$dialog.notify.success('Processed file ' + filePath)
+            })
         }
-      // Prints: <Buffer ...>
       }
     })
     console.log(`Created watcher for ${watchPath}`)
 
     watchers[watchPath] = watcher
   }
-
-  function walk (loadPath, matchName, moveToDir) {
-    fs.promises.readdir(loadPath)
-      .then(files => {
-        files.map(async file => {
-          const filePath = path.join(loadPath, file)
-          const moveToDirEffective = path.join(loadPath, moveToDir)
-
-          const stat = await fs.promises.stat(filePath)
-          if (!stat.isDirectory()) {
-            return
-          }
-          // This is a directory
-          if (validParent(matchName, filePath)) {
-            processFilesIndDir(filePath, moveToDirEffective)
-          } else {
-            walk(filePath, matchName, moveToDir)
-          }
-        })
-      })
-  }
-
-  async function processFilesIndDir (dir, moveToDir) {
-    console.log('Going to process files in ' + dir + ' with allowed types ' + allowedTypes)
-    const files = await fs.promises.readdir(dir)
-    files
-      .filter(file => allowedTypes.includes(path.extname(file)))
-      .forEach(file => processFile(path.join(dir, file), moveToDir))
-  }
-
-  function processFile (path, moveToDir) {
-    console.log(`going to process ${path} and going to move it to ${moveToDir}`)
-    // maybe send some notifications
-    app.context.$dialog.notify.success('Processed file ' + path)
-  }
-
   const $this = {
     newPath: pathInfo => {
       app.context.$dialog.notify.info('Monitoring files for change in ' + pathInfo.path)
       createWatcher(watchers, pathInfo)
-      walk(pathInfo.path, pathInfo.searchName || 'pdf', pathInfo.original || 'original')
     },
     deletePath: pathInfo => {
-      app.context.dialog.notify.info('Stopped monitoring files for change in ' + pathInfo.path)
+      app.context.$dialog.notify.info('Stopped monitoring files for change in ' + pathInfo.path)
       const path = pathInfo.path
       console.log(`Removing deleted item from watcher ${path}`)
       const watcher = watchers[path]

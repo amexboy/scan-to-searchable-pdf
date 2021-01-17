@@ -3,8 +3,8 @@
     <v-toolbar flat>
       <v-spacer />
 
-      <v-btn icon>
-        <v-icon color="success" @click="newRootFolder">fa-plus</v-icon>
+      <v-btn text @click="newRootFolder">
+        <v-icon color="success">fa-plus</v-icon> &nbsp; Add Scanned Path
       </v-btn>
     </v-toolbar>
 
@@ -24,15 +24,30 @@
         </template>
 
         <v-list-item>
-          <v-text-field v-model="item.path" readonly label="Path" append-icon="fa-folder" />
+          <v-row>
+            <v-col cols="12" sm="6">
+              <v-text-field v-model="item.path" readonly
+                            label="Path" append-outer-icon="fa-folder" @click="edit(item)"
+              />
+            </v-col>
+            <v-col cols="12" sm="6">
+              <v-text-field v-model="item.result" readonly
+                            label="Results File Folder Name" @click="edit(item)"
+              />
+            </v-col>
+          </v-row>
         </v-list-item>
         <v-list-item>
           <v-row>
             <v-col cols="12" sm="6">
-              <v-text-field v-model="item.searchName" readonly label="Folder Search Name" />
+              <v-text-field v-model="item.search" readonly
+                            label="Folder Search Name" @click="edit(item)"
+              />
             </v-col>
             <v-col cols="12" sm="6">
-              <v-text-field v-model="item.original" readonly label="Original File Folder Name" />
+              <v-text-field v-model="item.original" readonly
+                            label="Original File Folder Name" @click="edit(item)"
+              />
             </v-col>
           </v-row>
         </v-list-item>
@@ -54,43 +69,63 @@
       </v-list-group>
     </v-list>
     <v-dialog v-model="dialog" width="500px">
-      <v-card>
-        <v-toolbar
-          color="primary"
-          dark
-        >
-          {{ selected && selected.id? 'Edit': 'New' }} Scanned Path
-        </v-toolbar>
-        <v-card-text>
-          <v-list>
-            <v-list-item>
-              Please select Root folder
-            </v-list-item>
-
-            <v-divider />
-
-            <v-list-item>
-              <v-text-field v-model="selected.path" readonly label="Path" @click="selectRoot(selected)" />
-              <v-btn icon @click="selectRoot(selected)"><v-icon>fa-folder</v-icon></v-btn>
-            </v-list-item>
-            <v-list-item>
-              <v-text-field v-model="selected.searchName" label="Folder Search Name" />
-            </v-list-item>
-            <v-list-item>
-              <v-text-field v-model="selected.original" label="Original File Folder Name" />
-            </v-list-item>
-          </v-list>
-        </v-card-text>
-        <v-card-actions class="justify-end">
-          <v-btn color="red" text @click="dialog = false"><v-icon>fa-times</v-icon> &nbsp; Cancel</v-btn>
-          <v-spacer />
-          <v-btn :loading="processing"
-                 color="primary" text @click="save"
+      <v-form ref="form">
+        <v-card>
+          <v-toolbar
+            color="primary"
+            dark
           >
-            <v-icon>fa-check</v-icon> &nbsp; Save
-          </v-btn>
-        </v-card-actions>
-      </v-card>
+            {{ selected && selected.id? 'Edit': 'New' }} Scanned Path
+          </v-toolbar>
+          <v-card-text>
+            <v-list>
+              <v-list-item>
+                Please select Root folder
+              </v-list-item>
+
+              <v-divider />
+
+              <v-list-item>
+                <v-text-field v-model="selected.path" readonly label="Path"
+                              append-outer-icon="fa-folder" @click:append-outer="selectRoot(selected)"
+                              @click="selectRoot(selected)"
+                />
+              </v-list-item>
+              <v-list-item>
+                <v-text-field v-model="selected.result"
+                              :rules="[i => !!i || 'Required',
+                                       i => i !== selected.search || 'Result and Search Folders Cannot be the same']"
+                              label="Folder Search Name"
+                />
+              </v-list-item>
+              <v-list-item>
+                <v-text-field v-model="selected.search"
+                              :rules="[i => !!i || 'Required',
+                                       i => i !== selected.original || 'Original & Search Folders Can\'t be the same']"
+                              label="Folder Search Name"
+                />
+              </v-list-item>
+              <v-list-item>
+                <v-text-field v-model="selected.original"
+                              :rules="[i => !!i || 'Required',
+                                       i => i !== selected.result || 'Result and Search Folders Can\'t be the same',
+                                       i => i !== selected.search || 'Original and Search Folders Can\'t be the same']"
+                              label="Original File Folder Name"
+                />
+              </v-list-item>
+            </v-list>
+          </v-card-text>
+          <v-card-actions class="justify-end">
+            <v-spacer />
+            <v-btn :loading="processing"
+                   color="primary" text @click="save"
+            >
+              <v-icon small>fa-check</v-icon> &nbsp; Save
+            </v-btn>
+            <v-btn color="red" text @click="dialog = false"><v-icon small>fa-times</v-icon> &nbsp; Cancel</v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-form>
     </v-dialog>
   </v-card-text>
 </template>
@@ -123,6 +158,10 @@ export default {
     },
     save () {
       this.processing = true
+      if (!this.$refs.form.validate()) {
+        this.processing = false
+        return
+      }
       // this.processes.push(this.selected)
       this.$store.commit('path', this.selected)
       this.reload()
@@ -159,7 +198,7 @@ export default {
     },
     newRootFolder () {
       this.dialog = true
-      this.selected = { path: '' }
+      this.selected = { path: '', search: '*', original: 'Originals', result: 'Results' }
     }
   }
 

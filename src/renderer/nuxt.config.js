@@ -40,6 +40,11 @@ module.exports = {
     ['@nuxtjs/dotenv', { filename: `.env.${process.env.NODE_ENV}` }],
     ['vuetify-dialog/nuxt', { property: '$dialog' }]
   ],
+  vuetifyDialog: {
+    notify: {
+      position: 'top-left'
+    }
+  },
   vuetify: {
     icons: {
       iconfont: 'fa4'
