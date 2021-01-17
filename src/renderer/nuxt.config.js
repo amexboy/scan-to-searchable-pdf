@@ -32,7 +32,8 @@ module.exports = {
   },
   loading: false,
   plugins: [
-    { ssr: true, src: '@/plugins/icons.js' }
+    { ssr: true, src: '@/plugins/icons.js' },
+    '@/plugins/listener.js'
   ],
   modules: [
     '@nuxtjs/vuetify',
@@ -41,10 +42,7 @@ module.exports = {
   ],
   vuetify: {
     icons: {
-      iconfont: 'fa'
-    },
-    font: {
-      family: 'Roboto'
+      iconfont: 'fa4'
     },
     theme: {
       dark: false,

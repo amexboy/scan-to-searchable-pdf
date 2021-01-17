@@ -23,7 +23,6 @@
     "@types/node": "12.12.6"
   },
   "devDependencies": {
-    "@fortawesome/fontawesome-free": "5.15.0",
     "@nuxtjs/eslint-config": "1.1.2",
     "@nuxtjs/vuetify": "^1.11.2",
     "@xpda-dev/core": "^0.1.5",
@@ -40,6 +39,7 @@
     "eslint": "5.16.0",
     "eslint-friendly-formatter": "4.0.1",
     "eslint-loader": "4.0.2",
+    "font-awesome": "4.7.0",
     "native-ext-loader": "2.3.0",
     "node-sass": "4.14.1",
     "nuxt": "^2.14.12",
@@ -55,6 +55,7 @@
     "@aws-sdk/client-s3": "^3.1.0",
     "@aws-sdk/client-textract": "^3.1.0",
     "@nuxtjs/dotenv": "^1.4.1",
+    "chokidar": "^3.5.1",
     "image-size": "^0.9.3",
     "nedb-promises": "^4.1.1",
     "pdf-lib": "^1.14.0",
