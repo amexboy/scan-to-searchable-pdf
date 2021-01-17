@@ -21,10 +21,13 @@ export default app => {
       console.log(`Event for ${filePath}`)
       if (filePath) {
         const parent = path.dirname(filePath)
-        if (validParent(pathInfo.searchName, parent) && allowedTypes.includes(path.extname(filePath))) {
+        if (validParent(pathInfo.search, parent) && allowedTypes.includes(path.extname(filePath))) {
           const moveTo = path.join(parent, pathInfo.original, path.basename(filePath))
-          const resultTo = path.join(parent, pathInfo.result, path.basename(filePath), '.pdf')
+          const resultTo = path.join(parent, pathInfo.result, path.basename(filePath) + '.pdf')
 
+          app.context.store.commit('log',
+            { path: filePath,
+              text: 'Going to Process file ' + filePath + '\noriginal=' + moveTo + '\nresultTo = ' + resultTo })
           console.log(`going to process ${filePath} and going to move it to ${moveTo}`)
           // maybe send some notifications
           await fs.promises.mkdir(path.dirname(moveTo)).catch(err => console.log(err))
@@ -33,7 +36,14 @@ export default app => {
           processFile(filePath, path.extname(filePath), resultTo)
             .then(() => fs.promises.rename(filePath, moveTo))
             .then(_ => {
+              app.context.store.commit('log',
+                { path: filePath,
+                  text: 'Processed file ' + filePath + '\noriginal=' + moveTo + '\nresultTo = ' + resultTo })
               app.context.$dialog.notify.success('Processed file ' + filePath)
+            })
+            .catch(err => {
+              app.context.store.commit('log',
+                { path: filePath, text: 'Processed file failed ' + filePath + '\nerror=' + err })
             })
         }
       }
@@ -45,6 +55,7 @@ export default app => {
   const $this = {
     newPath: pathInfo => {
       app.context.$dialog.notify.info('Monitoring files for change in ' + pathInfo.path)
+      app.context.store.commit('log', { path: pathInfo.path, text: 'Started monitoring path' })
       createWatcher(watchers, pathInfo)
     },
     deletePath: pathInfo => {
@@ -57,6 +68,7 @@ export default app => {
         delete watchers[path]
       }
 
+      app.context.store.commit('log', { path: pathInfo.path, text: 'Stopped monitoring path' })
       app.context.$dialog.notify.info('Stopped monitoring files for change in ' + pathInfo.path)
       console.log('Closed watcher for ' + path)
     },

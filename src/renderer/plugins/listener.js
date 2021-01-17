@@ -13,7 +13,7 @@ export default ({ app }) => {
     console.log('Insert regarding ' + pathInfo.path)
     newPath(pathInfo)
   })
-  paths.on('remove', (datastore, result, query, pathInfo, options) => {
+  paths.on('remove', (datastore, result, pathInfo, options) => {
     console.log('Remove regarding ' + pathInfo.path)
     deletePath(pathInfo)
   })

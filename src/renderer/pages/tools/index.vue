@@ -52,7 +52,7 @@
           </v-row>
         </v-list-item>
         <v-list-item>
-          <v-btn text small>
+          <v-btn text small @click="logs(item)">
             <v-icon small color="gray lighten-3">fa-file</v-icon> &nbsp;
             View Logs
           </v-btn>
@@ -61,7 +61,7 @@
             <v-icon small color="primary">fa-pencil</v-icon> &nbsp;
             Edit
           </v-btn>
-          <v-btn text small @click="remove(item._id)">
+          <v-btn text small @click="remove(item)">
             <v-icon small color="red">fa-minus</v-icon> &nbsp;
             Delete
           </v-btn>
@@ -87,6 +87,7 @@
 
               <v-list-item>
                 <v-text-field v-model="selected.path" readonly label="Path"
+                              :rules="[i => !!i || 'Required']"
                               append-outer-icon="fa-folder" @click:append-outer="selectRoot(selected)"
                               @click="selectRoot(selected)"
                 />
@@ -168,8 +169,8 @@ export default {
       this.dialog = false
       this.processing = false
     },
-    remove (id) {
-      this.$store.state.paths.remove({ _id: id })
+    remove (item) {
+      this.$store.state.paths.remove(item)
       this.reload()
     },
     selectRoot (ob) {
@@ -191,6 +192,15 @@ export default {
           console.log(p)
           ob.path = p
         })
+    },
+    async logs (item) {
+      const logs = await this.$store.state.logs.find({ path: item.path })
+      console.log(logs)
+
+      this.$dialog.info({
+        text: logs.map(p => p.text).join('<br/>'),
+        title: 'Logs'
+      })
     },
     edit (row) {
       this.dialog = true
