@@ -35,7 +35,7 @@
 
 <script>
 import { remote } from 'electron'
-import { processFile } from '@/scripts/process_file'
+import { queueFile } from '@/scripts/process_file'
 // const fs = remote.require('fs')
 const path = remote.require('path')
 const { dialog } = remote
@@ -62,7 +62,7 @@ export default {
   methods: {
     convert () {
       this.processing = true
-      processFile(this.path, path.extname(this.path), this.output)
+      queueFile(this.path, path.extname(this.path), this.output)
         .then(res => {
           this.processing = false
           console.log(res)

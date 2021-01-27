@@ -1,4 +1,4 @@
-const { app } = require('electron')
+const { app, remote } = require('electron')
 const Datastore = require('nedb-promises')
 
 const datastores = {}
@@ -8,8 +8,10 @@ export const dbFactory = fileName => {
     console.log(`Returning a singlton for ${fileName}`)
     return datastores[fileName]
   }
+
+  const filePath = process.env.NODE_ENV === 'development' ? '.' : (app || remote.app).getAppPath('userData')
   const datastore = Datastore.create({
-    filename: `${process.env.NODE_ENV === 'development' ? '.' : app.getAppPath('userData')}/data/${fileName}`,
+    filename: `${filePath}/data/${fileName}`,
     timestampData: true,
     autoload: true
   })

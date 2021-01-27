@@ -198,7 +198,9 @@ export default {
       console.log(logs)
 
       this.$dialog.info({
-        text: logs.map(p => p.text).join('<br/>'),
+        text: '<v-list>' + logs.map(p =>
+          `<v-list-item-group>${p.text}</v-list-item-group>`
+        ).join('\n') + '</v-list>',
         title: 'Logs'
       })
     },
