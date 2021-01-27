@@ -3,21 +3,31 @@
 
 name: Build electron
 
-on:
-  release:
-    types: [created]
+on: [push]
 
 jobs:
   build:
-    runs-on: electronuserland/builder:wine
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-yarn@v1
-        with:
-          node-version: 12
-      - run: yarn build --win --linux
-      - uses: actions/upload-artifact@v2
-        with:
-          name: windows-latest
-          path: build/*.exe
+      # - uses: actions/setup-yarn@v1
+      #   with:
+      #     node-version: 12
+      - run: git config user.name 'Github'
+      - run: yarn version --patch --no-git-commit
+      - run: docker run --rm
+           --env-file <(env | grep -iE 'DEBUG|NODE_|ELECTRON_|YARN_|NPM_|CI|CIRCLE|TRAVIS_TAG|TRAVIS|TRAVIS_REPO_|TRAVIS_BUILD_|TRAVIS_BRANCH|TRAVIS_PULL_REQUEST_|APPVEYOR_|CSC_|GH_|GITHUB_|BT_|AWS_|STRIP|BUILD_')
+           --env ELECTRON_CACHE="/root/.cache/electron"
+           --env ELECTRON_BUILDER_CACHE="/root/.cache/electron-builder"
+           --env GH_TOKEN=${{ secrets.GH_TOKEN }}
+           -v ${PWD}:/project
+           -v ${PWD##*/}-node-modules:/project/node_modules
+           -v ~/.cache/electron:/root/.cache/electron
+           -v ~/.cache/electron-builder:/root/.cache/electron-builder
+           electronuserland/builder:wine yarn build --win --linux
+      - run: git add --force build/searchable-pdf-`jq --raw-output '.version' package.json`.exe build/searchable-pdf-`jq --raw-output '.version' package.json`.deb
+      - run: git commit -m "Built `jq '.version' package.json`" 
+      - run: git push origin main
+
+          
 

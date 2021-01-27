@@ -1,12 +1,19 @@
 import crypto from 'crypto'
 import { Textract } from '@aws-sdk/client-textract'
 import { S3 } from '@aws-sdk/client-s3'
+import { dbFactory } from '@/scripts/db'
+
 const textract = new Textract({})
 const s3 = new S3()
 const checkInterval = 3000
+const config = dbFactory('config.db')
 
-const getBucketName = () => {
-  return process.env.BUCKET_NAME
+export const getBucketName = () => {
+  return config.find({ key: 'bucket_name' }).then(([name]) => name ? name.value : null)
+}
+
+export const setBucketName = bucketName => {
+  return config.insert({ key: 'bucket_name', value: bucketName })
 }
 
 export const detectDocumentText = async file => {
@@ -35,16 +42,18 @@ export const startDocumentTextDetection = async (file, type) => {
   const fileKey = `searchable-pdf/input/${fileId}.${type}`
   // const outpoutFileKey = `${fileKey}_output`
 
+  const bucketName = await getBucketName()
+
   const uploadCommand = {
     Body: file,
-    Bucket: getBucketName(),
+    Bucket: bucketName,
     Key: fileKey
   }
 
   const textractCommand = {
     DocumentLocation: { /* required */
       S3Object: {
-        Bucket: getBucketName(),
+        Bucket: bucketName,
         Name: fileKey
       }
     },
@@ -79,7 +88,7 @@ export const startDocumentTextDetection = async (file, type) => {
     })
     .finally(param => {
       s3.deleteObjects({
-        Bucket: getBucketName(),
+        Bucket: bucketName,
         Delete: {
           Objects: [
             { Key: fileKey }

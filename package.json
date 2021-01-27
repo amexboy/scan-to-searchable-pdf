@@ -1,11 +1,11 @@
 {
   "name": "scanned-to-searchable-pdf",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Converts Images into searchable PDFs using AWS textract",
   "main": "./dist/main/index.js",
   "scripts": {
     "dev": "node .electron-nuxt/dev.js",
-    "build": "node .electron-nuxt/build.js",
+    "build": "yarn install && node .electron-nuxt/build.js",
     "test": "",
     "lint": "node_modules/.bin/eslint --ext .js,.vue -f ./node_modules/eslint-friendly-formatter ./src",
     "lint:fix": "yarn run lint -- --fix",

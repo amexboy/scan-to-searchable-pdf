@@ -27,6 +27,9 @@
           <v-tab to="/tools/">
             Continuous Process
           </v-tab>
+          <v-tab to="/config/">
+            Configure
+          </v-tab>
         </v-tabs>
         <nuxt />
       </v-card>
