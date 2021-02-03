@@ -15,8 +15,12 @@
 # git objects as binary
 *.png binary
 *.ico binary
+*.exe binary
+*.deb binary
 *.icns binary
 *.vue text
+*.exe binary
+*.deb binary
 
 # git objects as text for diff
 *.md text

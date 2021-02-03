@@ -11,9 +11,8 @@ export const queueFile = (path, type, output) => {
     return processFile(path, type, output)
   }
 
-  lastProcess = lastProcess
-    .then(func)
-    .then(() => console.log('Finished last process'))
+  lastProcess = lastProcess.then(func, func)
+
   return lastProcess
 }
 
