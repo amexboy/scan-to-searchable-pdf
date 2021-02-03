@@ -89,14 +89,16 @@ export const startDocumentTextDetection = async (file, type) => {
       console.log(s3Res)
       return textract.startDocumentTextDetection(textractCommand)
     })
-    .then(start => {
+    .then(async start => {
       const checkCommand = {
         JobId: start.JobId
       }
+      console.log(start)
 
-      return new Promise((resolve, reject) => {
+      const mainResult = await new Promise((resolve, reject) => {
         const intervalTimer = setInterval(async function () {
           const result = await textract.getDocumentTextDetection(checkCommand)
+
           if (result.JobStatus === 'SUCCEEDED') {
             clearInterval(intervalTimer)
             return resolve(result)
@@ -108,6 +110,8 @@ export const startDocumentTextDetection = async (file, type) => {
           }
         }, checkInterval)
       })
+
+      return checkPages(textract, start.JobId, mainResult)
     })
     .finally(param => {
       s3.deleteObjects({
@@ -131,4 +135,31 @@ export const startDocumentTextDetection = async (file, type) => {
 
       throw err
     })
+}
+
+async function checkPages (textract, jobId, result) {
+  console.log(textract, jobId, result)
+  if (result.NextToken) {
+    console.log('Fetching next')
+    const nextPages = await fetchPages(textract, jobId, result.NextToken)
+    console.log(nextPages)
+
+    result.Blocks = result.Blocks.concat(nextPages)
+  }
+
+  return result
+}
+
+async function fetchPages (textract, jobId, nextToken) {
+  const checkCommand = {
+    JobId: jobId,
+    NextToken: nextToken
+  }
+  const result = await textract.getDocumentTextDetection(checkCommand)
+
+  if (result.NextToken) {
+    return result.Blocks.concat(await fetchPages(textract, jobId, result.NextToken))
+  }
+
+  return result.Blocks
 }
