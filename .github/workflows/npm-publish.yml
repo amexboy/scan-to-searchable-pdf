@@ -3,16 +3,16 @@
 
 name: Build electron
 
-on: [push]
+on:
+  push:
+    branches:
+      - dummy-main
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      # - uses: actions/setup-yarn@v1
-      #   with:
-      #     node-version: 12
       - run: git config user.name 'Github'
       - run: yarn version --patch --no-git-commit
       - run: docker run --rm
@@ -25,9 +25,10 @@ jobs:
            -v ~/.cache/electron:/root/.cache/electron
            -v ~/.cache/electron-builder:/root/.cache/electron-builder
            electronuserland/builder:wine yarn build --win --linux
-      - run: git add --force build/searchable-pdf-`jq --raw-output '.version' package.json`.exe build/searchable-pdf-`jq --raw-output '.version' package.json`.deb
+      - run: git checkout build-results || git checkout -b build-results
+      - run: git add --force build/searchable-pdf-*.exe
       - run: git commit -m "Built `jq '.version' package.json`" 
-      - run: git push origin main
+      - run: git push -u origin build-results
 
           
 
