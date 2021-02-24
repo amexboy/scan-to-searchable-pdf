@@ -9,7 +9,7 @@ export const dbFactory = fileName => {
     return datastores[fileName]
   }
 
-  const filePath = process.env.NODE_ENV === 'development' ? '.' : (app || remote.app).getAppPath('home')
+  const filePath = process.env.NODE_ENV === 'development' ? '.' : (app || remote.app).getPath('home')
   const datastore = Datastore.create({
     filename: `${filePath}/searchable-pdf-data/${fileName}`,
     timestampData: true,
