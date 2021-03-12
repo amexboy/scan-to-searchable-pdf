@@ -3,6 +3,8 @@ import { PDFDocument } from 'pdf-lib'
 
 export const processPdf = async (path, fileContent, output, result) => {
   const doc = await PDFDocument.load(fileContent)
+  console.log(`Encrypted: ${doc.isEncrypted}`)
+  doc.setAuthor('PDF-Generator')
   //   const page = doc.addPage([imageSize.width, imageSize.height])
 
   const lines = result.Blocks
