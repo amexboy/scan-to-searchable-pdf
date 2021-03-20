@@ -63,7 +63,6 @@ export const startDocumentTextDetection = async (file, type) => {
 
   const fileId = crypto.randomBytes(16).toString('hex')
   const fileKey = `searchable-pdf/input/${fileId}.${type}`
-  // const outpoutFileKey = `${fileKey}_output`
 
   const bucketName = await getBucketName()
 

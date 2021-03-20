@@ -26,7 +26,12 @@
         <v-btn :loading="processing"
                color="primary" text @click="convert"
         >
-          <v-icon>fa-check</v-icon> &nbsp; Convert
+          <v-icon>fa-check</v-icon> &nbsp; Searchable
+        </v-btn>
+        <v-btn :loading="processing"
+               color="green" text @click="testPrint"
+        >
+          <v-icon>fa-check</v-icon> &nbsp; Render as Image
         </v-btn>
       </v-list-item>
     </v-list>
@@ -36,6 +41,7 @@
 <script>
 import { remote } from 'electron'
 import { queueFile } from '@/scripts/process_file'
+import print from '@/scripts/print'
 // const fs = remote.require('fs')
 const path = remote.require('path')
 const { dialog } = remote
@@ -60,6 +66,9 @@ export default {
     this.splitPath(this.path)
   },
   methods: {
+    testPrint () {
+      print(this.path, this.output)
+    },
     convert () {
       this.processing = true
       queueFile(this.path, path.extname(this.path), this.output)

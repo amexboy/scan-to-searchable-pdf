@@ -1,12 +1,10 @@
 import fs from 'fs'
+import path from 'path'
 import { PDFDocument } from 'pdf-lib'
+import renderPdf from '@/scripts/print'
+import { startDocumentTextDetection } from '@/scripts/aws'
 
-export const processPdf = async (path, fileContent, output, result) => {
-  const doc = await PDFDocument.load(fileContent)
-  console.log(`Encrypted: ${doc.isEncrypted}`)
-  doc.setAuthor('PDF-Generator')
-  //   const page = doc.addPage([imageSize.width, imageSize.height])
-
+export const convertToInternanlFormat = result => {
   const lines = result.Blocks
     .filter(t => t.BlockType === 'LINE')
     .reduce((res, line) => {
@@ -24,7 +22,33 @@ export const processPdf = async (path, fileContent, output, result) => {
       }
     })
 
-  console.log(pages)
+  return { lines, pages }
+}
+
+export const processPdf = (inputPath, fileContent, output) => {
+  return startDocumentTextDetection(fileContent, '.pdf')
+    .then(convertToInternanlFormat)
+    // return Promise.resolve({ lines: {} })
+    .then(result => {
+      if (Object.keys(result.lines).length === 0) {
+        console.log(`${inputPath} returned empty result, rendering and re-uploading`)
+        const fileName = path.basename(inputPath)
+        const outputDir = path.dirname(output)
+        const renderedFile = path.resolve(outputDir, `${fileName}_rendered.pdf`)
+
+        return renderPdf(path, renderedFile)
+          .then(_ => fs.promises.readFile(renderedFile))
+          .then(renderedFileContent => startDocumentTextDetection(renderedFileContent, '.pdf'))
+          .then(convertToInternanlFormat)
+      }
+
+      return result
+    })
+    .then(result => processPdfInternal(path, fileContent, output, result.pages))
+}
+async function processPdfInternal (path, fileContent, output, pages) {
+  const doc = await PDFDocument.load(fileContent)
+  doc.setAuthor('PDF-Generator')
 
   pages
     .forEach(pageInfo => {
