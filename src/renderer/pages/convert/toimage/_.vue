@@ -1,41 +1,5 @@
 <template>
-  <v-card-text>
-    <v-toolbar flat>
-      <v-breadcrumbs :items="parents" divider="\" />
-
-      <v-spacer />
-    </v-toolbar>
-
-    <v-divider />
-
-    <v-list>
-      <v-list-item>
-        Please select output directory and click convert
-      </v-list-item>
-
-      <v-divider />
-
-      <v-list-item>
-        <v-text-field v-model="output" label="Output Directory" />
-        <v-btn icon @click="selectOutput"><v-icon>fa-folder</v-icon></v-btn>
-      </v-list-item>
-
-      <v-list-item>
-        <v-btn color="red" text @click="cancel"><v-icon>fa-times</v-icon> &nbsp; Cancel</v-btn>
-        <v-spacer />
-        <v-btn :loading="processing"
-               color="primary" text @click="convert"
-        >
-          <v-icon>fa-check</v-icon> &nbsp; Searchable
-        </v-btn>
-        <!-- <v-btn :loading="processing"
-               color="green" text @click="testPrint"
-        >
-          <v-icon>fa-check</v-icon> &nbsp; Render as Image
-        </v-btn> -->
-      </v-list-item>
-    </v-list>
-  </v-card-text>
+  <canvas />
 </template>
 
 <script>
@@ -47,6 +11,7 @@ const path = remote.require('path')
 const { dialog } = remote
 
 export default {
+  layout: 'empty',
   data () {
     return {
       processing: false,
