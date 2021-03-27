@@ -2,32 +2,14 @@ import fs from 'fs'
 import path from 'path'
 import { PDFDocument } from 'pdf-lib'
 import renderPdf from '@/scripts/print'
-import { startDocumentTextDetection } from '@/scripts/aws'
+import { startDocumentTextDetection, transform } from '@/scripts/aws'
+import { getConfig } from '@/scripts/db'
+import { flagForReview } from '@/scripts/reviews'
 
-export const convertToInternanlFormat = result => {
-  const lines = result.Blocks
-    .filter(t => t.BlockType === 'LINE')
-    .reduce((res, line) => {
-      res[line.Id] = line
-      return res
-    }, {})
-  console.log(lines)
-
-  const pages = result.Blocks
-    .filter(t => t.BlockType === 'PAGE')
-    .map((page, i) => {
-      return {
-        page: i,
-        lines: page.Relationships ? page.Relationships.map(r => r.Ids).flat().map(id => lines[id]) : []
-      }
-    })
-
-  return { lines, pages }
-}
-
+const forceFetch = process.env.NODE_ENV === 'production'
 export const processPdf = (inputPath, fileContent, output) => {
-  return startDocumentTextDetection(fileContent, '.pdf')
-    .then(convertToInternanlFormat)
+  return startDocumentTextDetection(inputPath, fileContent, '.pdf', forceFetch)
+    .then(transform)
     // return Promise.resolve({ lines: {} })
     .then(result => {
       if (Object.keys(result.lines).length === 0) {
@@ -39,23 +21,28 @@ export const processPdf = (inputPath, fileContent, output) => {
         return renderPdf(path, renderedFile)
           .then(_ => fs.promises.readFile(renderedFile))
           .then(renderedFileContent => startDocumentTextDetection(renderedFileContent, '.pdf'))
-          .then(convertToInternanlFormat)
+          .then(transform)
       }
 
       return result
     })
-    .then(result => processPdfInternal(path, fileContent, output, result.pages))
+    .then(result => processPdfInternal(inputPath, fileContent, output, result.pages))
 }
-async function processPdfInternal (path, fileContent, output, pages) {
+async function processPdfInternal (inputPath, fileContent, output, pages) {
   const doc = await PDFDocument.load(fileContent)
   doc.setAuthor('PDF-Generator')
+  const confidence = await getConfig('confidence', 99)
 
   pages
     .forEach(pageInfo => {
       const page = doc.getPage(pageInfo.page)
       const { width, height } = page.getSize()
 
-      pageInfo.lines.forEach(t => {
+      pageInfo.words.forEach(t => {
+        if (t.Confidence < confidence) {
+          flagForReview(inputPath, t, { type: 'pdf', output })
+        }
+
         const size = t.Geometry.BoundingBox.Height * height
 
         page.drawText(t.Text, {

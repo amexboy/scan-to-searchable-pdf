@@ -18,3 +18,13 @@ export const dbFactory = fileName => {
   datastores[fileName] = datastore
   return datastore
 }
+
+const config = dbFactory('config.db')
+
+export const setConfig = (key, value) => {
+  return config.update({ key }, { key, value }, { upsert: true })
+}
+
+export const getConfig = (key, def = null) => {
+  return config.find({ key }).then(([conf]) => conf ? conf.value : def)
+}

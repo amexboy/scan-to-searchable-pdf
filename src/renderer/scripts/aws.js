@@ -1,64 +1,109 @@
 import crypto from 'crypto'
 import { Textract } from '@aws-sdk/client-textract'
 import { S3 } from '@aws-sdk/client-s3'
-import { dbFactory } from '@/scripts/db'
+import { dbFactory, getConfig, setConfig } from '@/scripts/db'
 
 const checkInterval = 3000
-const config = dbFactory('config.db')
+const resultStore = dbFactory('resultStore.db')
 
-export const getCredential = () => {
-  return Promise.all([
-    config.find({ key: 'apiKeyId' }).then(([res]) => res ? res.value : null),
-    config.find({ key: 'apiKeySecret' }).then(([res]) => res ? res.value : null),
-    config.find({ key: 'region' }).then(([res]) => res ? res.value : null)
-  ])
-    .then(([apiKeyId, apiKeySecret, region]) => {
-      const credentials = apiKeyId && apiKeySecret ? { accessKeyId: apiKeyId, secretAccessKey: apiKeySecret } : null
+export const getCredential = async () => {
+  const [apiKeyId, apiKeySecret, region] = await Promise.all(['apiKeyId', 'apiKeySecret', 'region'].map(getConfig))
+  const credentials = apiKeyId && apiKeySecret ? { accessKeyId: apiKeyId, secretAccessKey: apiKeySecret } : null
 
-      return { region: region || 'us-east-1', credentials }
-    })
+  return { region: region || 'us-east-1', credentials }
 }
 
 export const getBucketName = () => {
-  return config.find({ key: 'bucket_name' }).then(([name]) => name ? name.value : null)
+  return getConfig('bucket_name')
 }
 
 export const setBucketName = bucketName => {
-  return config.update({ key: 'bucket_name' }, { key: 'bucket_name', value: bucketName }, { upsert: true })
+  return setConfig('bucket_name')
 }
 
 export const setAwsAccess = (apiKeyId, apiKeySecret, region) => {
   return Promise.all([
-    config.update({ key: 'apiKeyId' }, { key: 'apiKeyId', value: apiKeyId }, { upsert: true }),
-    config.update({ key: 'apiKeySecret' }, { key: 'apiKeySecret', value: apiKeySecret }, { upsert: true }),
-    config.update({ key: 'region' }, { key: 'region', value: region }, { upsert: true })
+    setConfig('apiKeyId', apiKeyId),
+    setConfig('apiKeySecret', apiKeySecret),
+    setConfig('region', region)
   ])
 }
 
-export const detectDocumentText = async file => {
+export const transform = async result => {
+  const words = result.Blocks
+    .filter(t => t.BlockType === 'WORD')
+    .reduce((res, word) => {
+      res[word.Id] = word
+      return res
+    }, {})
+
+  const lines = result.Blocks
+    .filter(t => t.BlockType === 'LINE')
+    .reduce((res, line) => {
+      const lineWords = line.Relationships ? line.Relationships.map(r => r.Ids).flat().map(id => words[id]) : []
+      res[line.Id] = { line, words: lineWords }
+
+      return res
+    }, {})
+
+  const pages = result.Blocks
+    .filter(t => t.BlockType === 'PAGE')
+    .map((page, i) => {
+      const pageLines = page.Relationships ? page.Relationships.map(r => r.Ids).flat().map(id => lines[id]) : []
+      return {
+        page: i,
+        lines: pageLines.map(l => l.line),
+        words: pageLines.flatMap(line => line.words)
+      }
+    })
+
+  return { lines, pages, words }
+}
+
+export const detectDocumentText = async (fileName, fileContent, forceFetch = true) => {
+  if (!forceFetch) {
+    const storedResult = await resultStore.find({ fileName })
+      .then(([result]) => result ? JSON.parse(result.result) : null)
+
+    if (storedResult) {
+      console.log(`Cached result found for ${fileName}`, storedResult)
+      return storedResult
+    }
+  }
+
   const textract = await getCredential().then(config => new Textract(config))
 
-  console.log(textract)
   const command = {
     Document: {
-      Bytes: file
+      Bytes: fileContent
     }
   }
 
   return Promise.resolve(command)
     .then(command => textract.detectDocumentText(command))
     .then(result => {
-      console.log(result)
+      console.log(`Processing ${fileName} succeeded`, result)
+      resultStore.update({ fileName }, { fileName, result: JSON.stringify(result) }, { upsert: true })
       return result
     })
     .catch(err => {
-      console.log(err)
+      console.log(`Processing ${fileName} failed`, err)
 
       throw err
     })
 }
 
-export const startDocumentTextDetection = async (file, type) => {
+export const startDocumentTextDetection = async (fileName, fileContent, type, forceFetch = true) => {
+  if (!forceFetch) {
+    const storedResult = await resultStore.find({ fileName })
+      .then(([result]) => result ? JSON.parse(result.result) : null)
+
+    if (storedResult) {
+      console.log(`Cached result found for ${fileName}`, storedResult)
+      return storedResult
+    }
+  }
+
   const [textract, s3] = await getCredential().then(config => [new Textract(config), new S3(config)])
 
   const fileId = crypto.randomBytes(16).toString('hex')
@@ -67,7 +112,7 @@ export const startDocumentTextDetection = async (file, type) => {
   const bucketName = await getBucketName()
 
   const uploadCommand = {
-    Body: file,
+    Body: fileContent,
     Bucket: bucketName,
     Key: fileKey
   }
@@ -126,11 +171,12 @@ export const startDocumentTextDetection = async (file, type) => {
         })
     })
     .then(result => {
-      console.log(result)
+      console.log(`Processing ${fileName} succeeded`, result)
+      resultStore.update({ fileName }, { fileName, result: JSON.stringify(result) }, { upsert: true })
       return result
     })
     .catch(err => {
-      console.log({ err })
+      console.log(`Processing ${fileName} failed`, err)
 
       throw err
     })

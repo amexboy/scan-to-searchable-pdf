@@ -1,6 +1,5 @@
 
 import fs from 'fs'
-// import { startDocumentTextDetection, detectDocumentText } from '@/scripts/aws'
 import { processImage } from '@/scripts/process_image'
 import { processPdf } from '@/scripts/process_pdf'
 

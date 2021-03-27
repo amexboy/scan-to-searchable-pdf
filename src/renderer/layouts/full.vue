@@ -13,7 +13,7 @@
       <v-card
         align="left"
         class="mx-auto"
-        max-width="800"
+        max-width="100%"
         style="margin-top: -64px;"
       >
         <v-tabs
