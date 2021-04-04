@@ -33,6 +33,11 @@
                             label="AWS API Key Secret"
               />
             </v-col>
+            <v-col cols="12" sm="6">
+              <v-text-field v-model="confidence" hint="Threshold to flag word for review"
+                            label="Min Confdence"
+              />
+            </v-col>
           </v-row>
         </v-list-item>
       </v-list-item-group>
@@ -46,12 +51,14 @@
 
 <script>
 import { getBucketName, setBucketName, setAwsAccess, getCredential } from '@/scripts/aws'
+import { getConfig, setConfig } from '@/scripts/db'
 
 export default {
   data () {
     return {
       processing: false,
       bucketName: '',
+      confidence: '',
       region: '',
       apiKeyId: '',
       apiKeySecret: '',
@@ -63,6 +70,11 @@ export default {
       .then(name => {
         console.log(name)
         this.bucketName = name
+      })
+    getConfig('confidence', 99)
+      .then(confidence => {
+        console.log(confidence)
+        this.confidence = confidence
       })
 
     getCredential().then(config => {
@@ -77,7 +89,8 @@ export default {
       this.processing = true
       Promise.all([
         setBucketName(this.bucketName),
-        setAwsAccess(this.apiKeyId, this.apiKeySecret, this.region)
+        setAwsAccess(this.apiKeyId, this.apiKeySecret, this.region),
+        setConfig('confidence', this.confidence)
       ])
         .then(_ => {
           this.processing = false

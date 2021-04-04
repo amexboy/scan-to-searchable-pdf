@@ -40,6 +40,7 @@
 
 <script>
 import { remote } from 'electron'
+import { splitPath } from '@/scripts/utils'
 const fs = remote.require('fs')
 const path = remote.require('path')
 
@@ -65,24 +66,11 @@ export default {
 
     this.path = path.resolve(path.normalize(this.path))
     this.refresh()
-    this.splitPath(this.path)
+    this.parents = splitPath(this.path)
   },
   methods: {
     openURL (url) {
       remote.shell.openExternal(url)
-    },
-    splitPath (p) {
-      console.log(p)
-      function evalPath (p) {
-        const parent = path.dirname(p)
-        if (!p || p === parent) return [p]
-        return [...evalPath(parent), p]
-      }
-
-      this.parents = evalPath(p)
-        .map(p => {
-          return { text: path.basename(p) || 'root', to: '/browse/' + p, exact: true }
-        })
     },
     refresh () {
       const loadPath = this.path

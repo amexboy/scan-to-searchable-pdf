@@ -41,6 +41,7 @@
 <script>
 import { remote } from 'electron'
 import { queueFile } from '@/scripts/process_file'
+import { splitPath } from '@/scripts/utils'
 import print from '@/scripts/print'
 // const fs = remote.require('fs')
 const path = remote.require('path')
@@ -63,7 +64,7 @@ export default {
     }
     this.path = path.resolve(path.normalize(this.path))
     this.output = `${this.path}_converted.pdf`
-    this.splitPath(this.path)
+    this.parents = splitPath(this.path, true)
   },
   methods: {
     testPrint () {
@@ -80,19 +81,6 @@ export default {
         .catch(err => {
           this.processing = false
           this.$dialog.notify.error(`Processing ${this.path} failed due to ${err}`, { timeout: 0 })
-        })
-    },
-    splitPath (p) {
-      console.log(p)
-      function evalPath (p) {
-        const parent = path.dirname(p)
-        if (!p || p === parent) return [p]
-        return [...evalPath(parent), p]
-      }
-
-      this.parents = evalPath(p)
-        .map(p => {
-          return { text: path.basename(p) || 'root', to: this.path === p ? null : '/browse/' + p, exact: true }
         })
     },
     selectOutput (p) {

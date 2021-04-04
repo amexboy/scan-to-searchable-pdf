@@ -2,7 +2,7 @@ import crypto from 'crypto'
 import { Textract } from '@aws-sdk/client-textract'
 import { S3 } from '@aws-sdk/client-s3'
 import { dbFactory, getConfig, setConfig } from '@/scripts/db'
-
+import { wordUpdate, flagForReview } from '@/scripts/reviews'
 const checkInterval = 3000
 const resultStore = dbFactory('resultStore.db')
 
@@ -18,7 +18,7 @@ export const getBucketName = () => {
 }
 
 export const setBucketName = bucketName => {
-  return setConfig('bucket_name')
+  return setConfig('bucket_name', bucketName)
 }
 
 export const setAwsAccess = (apiKeyId, apiKeySecret, region) => {
@@ -29,9 +29,26 @@ export const setAwsAccess = (apiKeyId, apiKeySecret, region) => {
   ])
 }
 
-export const transform = async result => {
-  const words = result.Blocks
+export const transform = async (fileName, result, extras) => {
+  if (!result) {
+    return result
+  }
+  const confidence = await getConfig('confidence', 99)
+  const words = (await Promise.all(result.Blocks
     .filter(t => t.BlockType === 'WORD')
+    .map(async t => {
+      const correction = await wordUpdate(fileName, t.Id)
+      if (correction) {
+        console.log(correction, fileName, t)
+        t.Text = correction
+        t.Confidence = 100
+      }
+      if (t.Confidence < confidence) {
+        flagForReview(fileName, t, extras)
+      }
+      return t
+    })
+  ))
     .reduce((res, word) => {
       res[word.Id] = word
       return res
@@ -60,10 +77,13 @@ export const transform = async result => {
   return { lines, pages, words }
 }
 
-export const detectDocumentText = async (fileName, fileContent, forceFetch = true) => {
-  if (!forceFetch) {
+export const detectDocumentText = async (fileName, fileContent, useCached, extras) => {
+  if (useCached) {
     const storedResult = await resultStore.find({ fileName })
       .then(([result]) => result ? JSON.parse(result.result) : null)
+      .then(result => {
+        return transform(fileName, result, extras)
+      })
 
     if (storedResult) {
       console.log(`Cached result found for ${fileName}`, storedResult)
@@ -84,7 +104,7 @@ export const detectDocumentText = async (fileName, fileContent, forceFetch = tru
     .then(result => {
       console.log(`Processing ${fileName} succeeded`, result)
       resultStore.update({ fileName }, { fileName, result: JSON.stringify(result) }, { upsert: true })
-      return result
+      return transform(fileName, result, extras)
     })
     .catch(err => {
       console.log(`Processing ${fileName} failed`, err)
@@ -93,10 +113,13 @@ export const detectDocumentText = async (fileName, fileContent, forceFetch = tru
     })
 }
 
-export const startDocumentTextDetection = async (fileName, fileContent, type, forceFetch = true) => {
-  if (!forceFetch) {
+export const startDocumentTextDetection = async (fileName, fileContent, type, useCached, extras) => {
+  if (useCached) {
     const storedResult = await resultStore.find({ fileName })
       .then(([result]) => result ? JSON.parse(result.result) : null)
+      .then(result => {
+        return transform(fileName, result, extras)
+      })
 
     if (storedResult) {
       console.log(`Cached result found for ${fileName}`, storedResult)
@@ -173,7 +196,7 @@ export const startDocumentTextDetection = async (fileName, fileContent, type, fo
     .then(result => {
       console.log(`Processing ${fileName} succeeded`, result)
       resultStore.update({ fileName }, { fileName, result: JSON.stringify(result) }, { upsert: true })
-      return result
+      return transform(fileName, result, extras)
     })
     .catch(err => {
       console.log(`Processing ${fileName} failed`, err)

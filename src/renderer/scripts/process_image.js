@@ -1,10 +1,7 @@
 import fs from 'fs'
 import im from 'image-size'
 import { detectDocumentText } from '@/scripts/aws'
-import { getConfig } from '@/scripts/db'
-import { flagForReview } from '@/scripts/reviews'
 import PDFDocument from 'pdfkit'
-const forceFetch = process.env.NODE_ENV === 'production'
 
 const getImageSize = path => {
   return (new Promise((resolve, reject) => {
@@ -21,9 +18,8 @@ const getImageSize = path => {
     })
 }
 
-export const processImage = async (filePath, fileContent, output) => {
-  const result = await detectDocumentText(filePath, fileContent, forceFetch)
-  const confidence = await getConfig('confidence', 99)
+export const processImage = async (filePath, fileContent, output, useCached) => {
+  const result = await detectDocumentText(filePath, fileContent, useCached, { type: 'image', output })
 
   const doc = new PDFDocument({ autoFirstPage: false })
 
@@ -33,13 +29,8 @@ export const processImage = async (filePath, fileContent, output) => {
   doc.pipe(fs.createWriteStream(output))
   doc.addPage({ margin: 0, size: [imageSize.width, imageSize.height] })
 
-  result.Blocks
-    .filter(t => t.BlockType === 'WORD')
+  Object.values(result.words)
     .forEach(t => {
-      if (t.Confidence < confidence) {
-        flagForReview(filePath, t, { type: 'image', output })
-      }
-
       doc
         .rect(
           t.Geometry.BoundingBox.Left * imageSize.width,
