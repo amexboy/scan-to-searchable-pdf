@@ -177,9 +177,9 @@ export default {
       const pdf = await loadingTask.promise
 
       // Load information from the first page.
-      const page = await pdf.getPage(1)
       const word = this.flagged[id[0]].words.find(w => w.Id === id[1])
       console.log(word)
+      const page = await pdf.getPage(word.Page)
       const { Height, Left, Top, Width } = word.Geometry.BoundingBox
 
       const scale = 3

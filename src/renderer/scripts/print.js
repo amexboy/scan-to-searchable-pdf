@@ -46,38 +46,35 @@ export const renderPdfData = (pdfData, outputStream) => {
     .then(pdf => Promise.all(Array
       .from({ length: pdf.numPages }, (v, k) => pdf.getPage(k + 1))
     ))
-    .then(pages => {
+    .then(async pages => {
       const outputDoc = new PDFDocument({ autoFirstPage: false })
 
+      console.log(pages)
       outputDoc.pipe(outputStream)
+      for (const page of pages) {
+        console.log(page)
+        const image = await convertPage(page)
 
-      return Promise.all(
-        pages
-          .map(page => {
-            return convertPage(page)
-              .then(image => {
-                const imageSize = page.getViewport({ scale: 1.0 })
+        const imageSize = page.getViewport({ scale: 1.0 })
 
-                outputDoc.addPage({ margin: 0, size: [imageSize.width, imageSize.height] })
-
-                console.log('adding image')
-                outputDoc.image(image, 0, 0, {
-                  fit: [imageSize.width, imageSize.height],
-                  align: 'center',
-                  valign: 'center'
-                })
-              })
+        console.log('adding image')
+        outputDoc
+          .addPage({ margin: 0, size: [imageSize.width, imageSize.height] })
+          .image(image, 0, 0, {
+            fit: [imageSize.width, imageSize.height],
+            align: 'center',
+            valign: 'center'
           })
-      )
-        .then(_ => {
-          outputDoc.end()
-          return new Promise(function (resolve, reject) {
-            outputStream.on('finish', resolve)
-          })
-            .then(data => {
-              console.log('Done generationg PDF from converted images')
-              return data
-            })
+      }
+
+      outputDoc.end()
+
+      return new Promise(function (resolve, reject) {
+        outputStream.on('finish', resolve)
+      })
+        .then(data => {
+          console.log('Done generationg PDF from converted images')
+          return data
         })
     })
 }
