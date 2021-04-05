@@ -13,7 +13,7 @@ export default app => {
 
   function createWatcher (watchers, pathInfo) {
     const watchPath = pathInfo.path
-    const ignore = new RegExp(`(^|[/\\\\])(${pathInfo.original})|(${pathInfo.result})[/\\\\]`)
+    const ignore = new RegExp(`(^|[/\\\\])((${pathInfo.original})|(${pathInfo.result}))[/\\\\]?$`)
     const watcher = chokidar.watch(watchPath, {
     //   ignored: new RegExp(`(^|[/\\\\])(${pathInfo.original})|(${pathInfo.result})[/\\\\]`)
     })
@@ -22,7 +22,7 @@ export default app => {
       console.log(`Event for ${filePath}`)
       if (filePath) {
         const parent = path.dirname(filePath)
-        if (filePath.match(ignore) ||
+        if (parent.match(ignore) ||
             !validParent(pathInfo.search, parent) ||
             !allowedTypes.includes(path.extname(filePath))) {
           console.log('Ignoring file ' + filePath + ' because of rule')
@@ -42,7 +42,7 @@ export default app => {
         await fs.promises.mkdir(path.dirname(moveTo)).catch(_ => {})
         await fs.promises.mkdir(path.dirname(resultTo)).catch(_ => {})
 
-        queueFile(filePath, path.extname(filePath), resultTo)
+        queueFile(filePath, path.extname(filePath), resultTo, false, { originalPath: moveTo })
           .then(() => fs.promises.rename(filePath, moveTo))
           .then(_ => {
             app.context.$dialog.notify.success('Processed file ' + filePath)

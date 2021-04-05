@@ -1,7 +1,8 @@
 import processPath from '@/scripts/process_path.js'
+import { dbFactory } from '@/scripts/db'
 
 export default ({ app }) => {
-  const paths = app.store.state.paths
+  const paths = dbFactory('continious-process.db')
   const { newPath, updatePath, deletePath } = processPath(app)
 
   paths.on('update', (datastore, result, query, pathInfo, options) => {

@@ -4,8 +4,9 @@ import { PDFDocument } from 'pdf-lib'
 import renderPdf from '@/scripts/print'
 import { startDocumentTextDetection } from '@/scripts/aws'
 
-export const processPdf = (inputPath, fileContent, output, useCached) => {
-  return startDocumentTextDetection(inputPath, fileContent, '.pdf', useCached, { type: '.pdf', output })
+export const processPdf = (inputPath, fileContent, output, useCached, extras) => {
+  const extraCopy = { type: '.pdf', output, ...extras }
+  return startDocumentTextDetection(inputPath, fileContent, '.pdf', useCached, extraCopy)
     // return Promise.resolve({ lines: {} })
     .then(result => {
       if (Object.keys(result.lines).length === 0) {
@@ -14,9 +15,10 @@ export const processPdf = (inputPath, fileContent, output, useCached) => {
         const outputDir = path.dirname(output)
         const renderedFile = path.resolve(outputDir, `${fileName}_rendered.pdf`)
 
-        return renderPdf(path, renderedFile)
+        return renderPdf(inputPath, renderedFile)
           .then(_ => fs.promises.readFile(renderedFile))
-          .then(renderedFileContent => startDocumentTextDetection(renderedFileContent, '.pdf'))
+          .then(renderedFileContent =>
+            startDocumentTextDetection(renderedFile, renderedFileContent, '.pdf', useCached, extraCopy))
       }
 
       return result

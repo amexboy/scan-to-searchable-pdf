@@ -133,6 +133,9 @@
 
 <script>
 import { remote } from 'electron'
+import { dbFactory } from '@/scripts/db'
+
+const paths = dbFactory('continious-process.db')
 const path = remote.require('path')
 const { dialog } = remote
 
@@ -151,7 +154,7 @@ export default {
   },
   methods: {
     reload () {
-      this.$store.state.paths.find({})
+      paths.find({})
         .then(p => {
           console.log(p)
           this.processes = p
@@ -164,14 +167,18 @@ export default {
         return
       }
       // this.processes.push(this.selected)
-      this.$store.commit('path', this.selected)
-      this.reload()
-      this.dialog = false
-      this.processing = false
+      paths.update({ _id: this.selected._id }, this.selected, { upsert: true })
+        .then(_ => {
+          this.reload()
+          this.dialog = false
+          this.processing = false
+        })
     },
     remove (item) {
-      this.$store.state.paths.remove(item)
-      this.reload()
+      paths.remove({ _id: item._id, path: item.path })
+        .then(_ => {
+          this.reload()
+        })
     },
     selectRoot (ob) {
       const defaultPath = (typeof ob === 'object') ? ob.path : ''

@@ -18,8 +18,8 @@ const getImageSize = path => {
     })
 }
 
-export const processImage = async (filePath, fileContent, output, useCached) => {
-  const result = await detectDocumentText(filePath, fileContent, useCached, { type: 'image', output })
+export const processImage = async (filePath, fileContent, output, useCached, extras) => {
+  const result = await detectDocumentText(filePath, fileContent, useCached, { type: 'image', output, ...extras })
 
   const doc = new PDFDocument({ autoFirstPage: false })
 

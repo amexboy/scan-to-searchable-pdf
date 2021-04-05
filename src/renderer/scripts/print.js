@@ -5,7 +5,38 @@ const fs = require('fs')
 const pdfjsLib = require('pdfjs-dist')
 
 export const convertPage = page => {
-  return Promise.resolve(page)
+  const canvas = document.createElement('canvas')
+  const context = canvas.getContext('2d')
+
+  const scale = 2.5
+  const viewport = page.getViewport({ scale })
+  canvas.height = viewport.height
+  canvas.width = viewport.width
+
+  // Render PDF page into canvas context
+  const renderContext = {
+    canvasContext: context,
+    viewport
+  }
+  const renderTask = page.render(renderContext)
+  return renderTask.promise.then(() => {
+    console.log('Page rendered', canvas)
+    // const image = canvas.toDataURL('image/png')
+    return new Promise(resolve => {
+      canvas.toBlob(blob => {
+        const reader = new FileReader()
+        reader.readAsArrayBuffer(blob)
+
+        reader.addEventListener('loadend', () => {
+          resolve(reader.result)
+        })
+      }, 'image/png')
+    })
+      .then(image => {
+        console.log('Image generated', image)
+        return image
+      })
+  })
 }
 
 export const renderPdfData = (pdfData, outputStream) => {
@@ -41,9 +72,12 @@ export const renderPdfData = (pdfData, outputStream) => {
         .then(_ => {
           outputDoc.end()
           return new Promise(function (resolve, reject) {
-            console.log('Done generationg PDF from converted images')
             outputStream.on('finish', resolve)
           })
+            .then(data => {
+              console.log('Done generationg PDF from converted images')
+              return data
+            })
         })
     })
 }

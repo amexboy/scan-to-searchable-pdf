@@ -28,11 +28,11 @@
         >
           <v-icon>fa-check</v-icon> &nbsp; Searchable
         </v-btn>
-        <!-- <v-btn :loading="processing"
+        <v-btn :loading="processing"
                color="green" text @click="testPrint"
         >
           <v-icon>fa-check</v-icon> &nbsp; Render as Image
-        </v-btn> -->
+        </v-btn>
       </v-list-item>
     </v-list>
   </v-card-text>
@@ -76,11 +76,12 @@ export default {
         .then(res => {
           this.processing = false
           console.log(res)
-          this.$dialog.notify.success(`Processed ${this.path} file succesfully`, { timeout: 0 })
+          this.$dialog.notify.success(`Processed ${this.path} file succesfully`, { timeout: 60000 })
         })
         .catch(err => {
           this.processing = false
-          this.$dialog.notify.error(`Processing ${this.path} failed due to ${err}`, { timeout: 0 })
+          console.log(err)
+          this.$dialog.notify.error(`Processing ${this.path} failed due to ${err}`, { timeout: 120000 })
         })
     },
     selectOutput (p) {
