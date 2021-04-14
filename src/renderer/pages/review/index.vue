@@ -41,13 +41,7 @@
       </v-navigation-drawer>
       <v-col>
         <v-card>
-          <v-card-text v-if="!file">
-            Please select word from the list on the left
-          </v-card-text>
-          <v-row v-if="!!file">
-            <v-col cols="12" xs="12">
-              <v-breadcrumbs :items="parents" divider="\" />
-            </v-col>
+          <v-row>
             <v-col cols="12" xs="12">
               <v-row align-xs="center">
                 <v-btn text color="primary"><v-icon>mdi-arrow-left</v-icon></v-btn>
@@ -58,13 +52,8 @@
                 <v-btn text color="primary"><v-icon>mdi-arrow-right</v-icon></v-btn>
               </v-row>
             </v-col>
-            <v-col cols="12" xs="12">
-              Word detected: <span class="strong"> {{ active[2] }}</span>
-            </v-col>
             <v-col>
-              <v-card-text>
-                <canvas ref="pdf" style="max-width: 100%; max-height: 500px" />
-              </v-card-text>
+              <pdf-vue v-if="active" :key="active.wordId" :word="active" />
             </v-col>
           </v-row>
         </v-card>
@@ -75,11 +64,11 @@
 <script>
 import path from 'path'
 import { getFlagedFiles, approveWord } from '@/scripts/reviews'
-import { splitPath } from '@/scripts/utils'
 import EditWord from '../../components/EditWord.vue'
-const pdfjsLib = require('pdfjs-dist')
+import PdfVue from '../../components/PdfVue.vue'
 
 export default {
+  components: { PdfVue },
   layout: 'full',
   data: () => {
     return {
@@ -90,32 +79,12 @@ export default {
     }
   },
   computed: {
-    fileName () {
-      if (!this.active) return undefined
-
-      const id = this.active
-
-      const flagged = this.flagged[id[0]]
-      console.log('Selected ', id, flagged)
-      if (!flagged || !flagged.extras) {
-        return null
-      }
-
-      return flagged.extras.output
-    },
-    file () {
-      if (!this.fileName) return undefined
-
-      return `file://${this.fileName}`
-    },
-    parents () {
-      return this.fileName ? splitPath(this.fileName, true) : []
+    words () {
+      return this.items
+        .flatMap(f => f.children).map(c => c.id).map(([file, wordId, text]) => ({ file, wordId, text }))
     }
   },
   watch: {
-    active () {
-      this.drawPdf()
-    },
     items (to) {
       this.active = to[0] ? to[0].children[0].id : null
     }
@@ -139,7 +108,7 @@ export default {
               name: path.basename(file),
               children: flagged[file].words
                 .map((w, i) =>
-                  w ? { active: i === 0, id: [file, w.Id, w.Text], name: w.Text } : null
+                  w ? { active: i === 0, id: { file, wordId: w.Id, text: w.Text, word: w, extras: flagged[file].extras }, name: w.Text } : null
                 )
             }))
           console.log(res)
@@ -167,48 +136,6 @@ export default {
             this.reload()
           })
       }
-    },
-    async drawPdf () {
-      const id = this.active
-      if (!id) {
-        return
-      }
-      const loadingTask = pdfjsLib.getDocument(this.file)
-      const pdf = await loadingTask.promise
-
-      // Load information from the first page.
-      const word = this.flagged[id[0]].words.find(w => w.Id === id[1])
-      console.log(word)
-      const page = await pdf.getPage(word.Page)
-      const { Height, Left, Top, Width } = word.Geometry.BoundingBox
-
-      const scale = 3
-      const viewport = page.getViewport({ scale })
-
-      // Apply page dimensions to the <canvas> element.
-      const canvas = this.$refs.pdf
-      const context = canvas.getContext('2d')
-      canvas.height = viewport.height * Height + 500
-      canvas.width = viewport.width
-      console.log(viewport)
-
-      // Render the page into the <canvas> element.
-      const renderContext = {
-        canvasContext: context,
-        viewport
-      }
-
-      context.translate(0, 250 - viewport.height * Top)
-      await page.render(renderContext).promise.then(_ => {
-        context.fillStyle = '#FCDB03A2'
-        context.fillRect(
-          Left * canvas.width,
-          Top * viewport.height,
-          Width * canvas.width,
-          Height * viewport.height
-        )
-      })
-      console.log('Page rendered!')
     }
   }
 }

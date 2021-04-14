@@ -67,10 +67,11 @@ export const transform = async (fileName, result, extras) => {
     .filter(t => t.BlockType === 'PAGE')
     .map((page, i) => {
       const pageLines = page.Relationships ? page.Relationships.map(r => r.Ids).flat().map(id => lines[id]) : []
+      const pageWords = pageLines.flatMap(line => line.words).map(w => { w.Page = i + 1; return w })
       return {
         page: i,
         lines: pageLines.map(l => l.line),
-        words: pageLines.flatMap(line => line.words)
+        words: pageWords
       }
     })
 
