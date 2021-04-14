@@ -1,7 +1,7 @@
 <template>
   <v-card-text>
     <v-row>
-      <v-navigation-drawer permanent>
+      <v-navigation-drawer width="350" permanent>
         <v-list>
           <v-list-item>
             Below confidence words
@@ -21,6 +21,10 @@
             </template>
 
             <v-list-item-group>
+              <v-list-item color="green" @click="approveAllDialog(item.children)">
+                <v-icon>mdi-check</v-icon> &nbsp; Bulk Approve
+              </v-list-item>
+
               <v-list-item v-for="(child, i) in item.children"
                            :key="i"
                            v-model="child.active"
@@ -64,8 +68,9 @@
 <script>
 import path from 'path'
 import { getFlagedFiles, approveWord } from '@/scripts/reviews'
-import EditWord from '../../components/EditWord.vue'
-import PdfVue from '../../components/PdfVue.vue'
+import EditWord from '@/components/EditWord.vue'
+import ApproveConfidence from '@/components/ApproveConfidence.vue'
+import PdfVue from '@/components/PdfVue.vue'
 
 export default {
   components: { PdfVue },
@@ -108,7 +113,10 @@ export default {
               name: path.basename(file),
               children: flagged[file].words
                 .map((w, i) =>
-                  w ? { active: i === 0, id: { file, wordId: w.Id, text: w.Text, word: w, extras: flagged[file].extras }, name: w.Text } : null
+                  w ? {
+                    active: i === 0,
+                    id: { file, wordId: w.Id, text: w.Text, word: w, extras: flagged[file].extras },
+                    name: w.Text } : null
                 )
             }))
           console.log(res)
@@ -117,7 +125,7 @@ export default {
         })
     },
     async edit (id) {
-      const result = await this.$dialog.showAndWait(EditWord, { word: id[2] })
+      const result = await this.$dialog.showAndWait(EditWord, { word: id.text })
 
       if (result && !result.cancel) {
         this.approve(id, result.update)
@@ -129,12 +137,36 @@ export default {
         title: 'Are you sure?'
       })
       if (res) {
-        approveWord(id[0], id[1], newWord)
+        approveWord(id.file, id.wordId, newWord)
           .then(_ => {
-            this.$dialog.notify.success(`Updated word for ${id[0]}`)
+            this.$dialog.notify.success(`Updated word for ${id.file}`)
 
             this.reload()
           })
+      }
+    },
+    async approveAllDialog (words) {
+      const result = await this.$dialog.showAndWait(ApproveConfidence, { confidence: 0 })
+      if (result && !result.cancel) {
+        const confidence = words.map(w => w.id).filter(w => w.word.Confidence > result.confidence)
+        console.log('Words above confidence', confidence)
+
+        const res = await this.$dialog.confirm({
+          text: `Approve ${confidence.length} words above ${result.confidence}% confidence`,
+          title: 'Are you sure?'
+        })
+        if (res) {
+          Promise.all(
+            confidence.map(id => {
+              return approveWord(id.file, id.wordId)
+            })
+          )
+            .then(_ => {
+              this.$dialog.notify.success(`Approved all words aboove set confidence`)
+
+              this.reload()
+            })
+        }
       }
     }
   }
