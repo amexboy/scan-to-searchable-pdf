@@ -15,7 +15,7 @@ export const getFlagedFiles = () => {
       return res.reduce((res, flag) => {
         const old = res[flag.filePath] || { wordCount: 0, words: [], extras: flag.extras }
         old.wordCount++
-        old.words.push(flag.word)
+        old.words.push({ ...flag.word, path: flag.filePath })
 
         res[flag.filePath] = old
         return res
@@ -26,7 +26,6 @@ export const getFlagedFiles = () => {
 export const approveWord = (filePath, wordId, newWord) => {
   return flagStore.find({ filePath, wordId })
     .then(res => {
-      console.log(res)
       const word = res[0]
       console.log('Removing flagged word', word, newWord)
       return updateStore

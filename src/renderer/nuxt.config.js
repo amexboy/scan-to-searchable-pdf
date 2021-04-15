@@ -47,8 +47,9 @@ module.exports = {
   },
   vuetify: {
     icons: {
-      iconfont: 'fa4'
+      iconFont: 'mdiSvg'
     },
+    defaultAssets: { icons: false },
     theme: {
       dark: false,
       themes: {

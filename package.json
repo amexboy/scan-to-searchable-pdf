@@ -23,6 +23,7 @@
     "@types/node": "12.12.6"
   },
   "devDependencies": {
+    "@mdi/font": "^5.9.55",
     "@nuxtjs/eslint-config": "1.1.2",
     "@nuxtjs/vuetify": "^1.11.2",
     "@xpda-dev/core": "^0.1.5",

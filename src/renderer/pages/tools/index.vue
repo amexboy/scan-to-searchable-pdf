@@ -14,7 +14,7 @@
         v-for="item in processes"
         :key="item.path"
         v-model="item.active"
-        prepend-icon="fa-folder"
+        prepend-icon="mdi-folder"
         no-action
       >
         <template v-slot:activator>
@@ -27,7 +27,7 @@
           <v-row>
             <v-col cols="12" sm="6">
               <v-text-field v-model="item.path" readonly
-                            label="Path" append-outer-icon="fa-folder" @click="edit(item)"
+                            label="Path" append-outer-icon="mdi-folder" @click="edit(item)"
               />
             </v-col>
             <v-col cols="12" sm="6">
@@ -53,7 +53,7 @@
         </v-list-item>
         <v-list-item>
           <v-btn text small @click="logs(item)">
-            <v-icon small color="gray lighten-3">fa-file</v-icon> &nbsp;
+            <v-icon small color="gray lighten-3">mdi-file</v-icon> &nbsp;
             View Logs
           </v-btn>
           <v-spacer />
@@ -88,7 +88,7 @@
               <v-list-item>
                 <v-text-field v-model="selected.path" readonly label="Path"
                               :rules="[i => !!i || 'Required']"
-                              append-outer-icon="fa-folder" @click:append-outer="selectRoot(selected)"
+                              append-outer-icon="mdi-folder" @click:append-outer="selectRoot(selected)"
                               @click="selectRoot(selected)"
                 />
               </v-list-item>

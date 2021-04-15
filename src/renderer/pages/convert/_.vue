@@ -17,7 +17,7 @@
 
       <v-list-item>
         <v-text-field v-model="output" label="Output Directory" />
-        <v-btn icon @click="selectOutput"><v-icon>fa-folder</v-icon></v-btn>
+        <v-btn icon @click="selectOutput"><v-icon>mdi-folder</v-icon></v-btn>
       </v-list-item>
 
       <v-list-item>

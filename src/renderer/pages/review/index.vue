@@ -1,68 +1,70 @@
 <template>
   <v-card-text>
-    <v-row>
-      <v-navigation-drawer width="350" permanent>
-        <v-list>
-          <v-list-item>
-            Below confidence words
-          </v-list-item>
-          <v-divider />
-          <v-list-group
-            v-for="item in items"
-            :key="item.title"
-            v-model="item.active"
-            prepend-icon="mdi-file"
-            no-action
-          >
-            <template v-slot:activator>
-              <v-list-item-content>
-                <v-list-item-title v-text="item.name" />
-              </v-list-item-content>
-            </template>
-
-            <v-list-item-group>
-              <v-list-item color="green" @click="approveAllDialog(item.children)">
-                <v-icon>mdi-check</v-icon> &nbsp; Bulk Approve
-              </v-list-item>
-
-              <v-list-item v-for="(child, i) in item.children"
-                           :key="i"
-                           v-model="child.active"
-                           @click="active = child.id"
+    <v-col>
+      <v-card>
+        <v-data-table
+          :headers="headers"
+          :items="files"
+          :search="search"
+          single-expand
+          show-expand
+        >
+          <template v-slot:top>
+            <v-toolbar flat>
+              <v-toolbar-title>Flagged Files</v-toolbar-title>
+              <v-spacer />
+              <v-text-field
+                v-model="search"
+                append-icon="mdi-magnify"
+                label="Search"
+                single-line
+                hide-details
+              />
+            </v-toolbar>
+          </template>
+          <template v-slot:item.actions="{ item }">
+            <v-row>
+              <!-- <v-btn small text color="red"><v-icon>mdi-lock</v-icon></v-btn> -->
+              <v-btn small text color="green" @click="approveAllDialog(item.words)"><v-icon>mdi-check</v-icon></v-btn>
+              <v-btn small text color="primary"><v-icon>mdi-eye-outline</v-icon></v-btn>
+            </v-row>
+          </template>
+          <template v-slot:expanded-item="{ headers, item }">
+            <td :colspan="headers.length">
+              <v-list
+                dense
+                subheader
+                two-line
               >
-                <!-- <v-list-item-icon> -->
-                <v-list-item-title v-text="child.name" />
-                <v-list-item-icon @click="approve(child.id)">
-                  <v-icon small color="green" v-text="'mdi-check'" />
-                </v-list-item-icon>
-                <v-list-item-icon @click="edit(child.id)">
-                  <v-icon small color="primary" v-text="'mdi-pencil'" />
-                </v-list-item-icon>
-              </v-list-item>
-            </v-list-item-group>
-          </v-list-group>
-        </v-list>
-      </v-navigation-drawer>
-      <v-col>
-        <v-card>
-          <v-row>
-            <v-col cols="12" xs="12">
-              <v-row align-xs="center">
-                <v-btn text color="primary"><v-icon>mdi-arrow-left</v-icon></v-btn>
-                <v-spacer />
-                <v-btn text color="green" @click="approve(active)"><v-icon>mdi-check</v-icon></v-btn>
-                <v-btn text color="primary" @click="edit(active)"><v-icon>mdi-pencil</v-icon></v-btn>
-                <v-spacer />
-                <v-btn text color="primary"><v-icon>mdi-arrow-right</v-icon></v-btn>
-              </v-row>
-            </v-col>
-            <v-col>
-              <pdf-vue v-if="active" :key="active.wordId" :word="active" />
-            </v-col>
-          </v-row>
-        </v-card>
-      </v-col>
-    </v-row>
+                <v-list-item>
+                  <v-list-item-content>
+                    <v-list-item-subtitle v-text="'Path'" />
+                    <v-list-item-title v-text="item.path" />
+                  </v-list-item-content>
+                </v-list-item>
+
+                <v-list-item>
+                  <v-list-item-content>
+                    <v-list-item-subtitle v-text="'Input'" />
+                    <v-list-item-title v-text="item.input" />
+                  </v-list-item-content>
+                </v-list-item>
+
+                <v-list-item>
+                  <v-btn small text color="green" @click="approveAllDialog(item.words)">
+                    <v-icon v-text="'mdi-check'" />&nbsp; Bulk Approve
+                  </v-btn>
+                  <v-btn small text color="primary"><v-icon v-text="'mdi-eye-outline'" />&nbsp; Review</v-btn>
+                  <v-spacer />
+                  <!-- <v-btn small text color="green"><v-icon v-text="'mdi-lock'" />&nbsp; Aquire Lock</v-btn>
+                  <v-btn small text color="red"><v-icon v-text="'mdi-lock-open'" />&nbsp; Release Lock</v-btn> -->
+                </v-list-item>
+              </v-list>
+            </td>
+          </template>
+        </v-data-table>
+      </v-card>
+    </v-col>
   </v-card-text>
 </template>
 <script>
@@ -70,23 +72,37 @@ import path from 'path'
 import { getFlagedFiles, approveWord } from '@/scripts/reviews'
 import EditWord from '@/components/EditWord.vue'
 import ApproveConfidence from '@/components/ApproveConfidence.vue'
-import PdfVue from '@/components/PdfVue.vue'
 
 export default {
-  components: { PdfVue },
-  layout: 'full',
   data: () => {
     return {
-      active: null,
-      open: [],
+      search: '',
       flagged: {},
-      items: []
+      headers: [{ text: 'File Name', value: 'name' },
+        { text: 'Flagged Words', value: 'wordsCount' },
+        { text: 'Actions', value: 'actions', sortable: false }
+        // { text: 'Path', value: 'path' },
+        // { text: 'Input', value: 'input' },
+        // { text: 'Output', value: 'output' }
+      ]
     }
   },
   computed: {
-    words () {
-      return this.items
-        .flatMap(f => f.children).map(c => c.id).map(([file, wordId, text]) => ({ file, wordId, text }))
+    files () {
+      const flagged = this.flagged
+      const res = Object.keys(flagged)
+        .map((file, fi) => ({
+          name: path.basename(file),
+          path: file,
+          wordsCount: flagged[file].words.length,
+          words: flagged[file].words,
+          input: flagged[file].extras.originalPath || file,
+          output: flagged[file].extras.output
+
+        }))
+      console.log(res)
+
+      return res
     }
   },
   watch: {
@@ -105,23 +121,6 @@ export default {
           console.log(Object.values(flagged))
           this.flagged = flagged || {}
           return flagged
-        })
-        .then(flagged => {
-          const res = Object.keys(flagged)
-            .map((file, fi) => ({
-              active: fi === 0,
-              name: path.basename(file),
-              children: flagged[file].words
-                .map((w, i) =>
-                  w ? {
-                    active: i === 0,
-                    id: { file, wordId: w.Id, text: w.Text, word: w, extras: flagged[file].extras },
-                    name: w.Text } : null
-                )
-            }))
-          console.log(res)
-
-          this.items = res
         })
     },
     async edit (id) {
@@ -146,9 +145,9 @@ export default {
       }
     },
     async approveAllDialog (words) {
-      const result = await this.$dialog.showAndWait(ApproveConfidence, { confidence: 0 })
+      const result = await this.$dialog.showAndWait(ApproveConfidence, { confidence: 1 })
       if (result && !result.cancel) {
-        const confidence = words.map(w => w.id).filter(w => w.word.Confidence > result.confidence)
+        const confidence = words.filter(w => w.Confidence > result.confidence)
         console.log('Words above confidence', confidence)
 
         const res = await this.$dialog.confirm({
@@ -157,8 +156,8 @@ export default {
         })
         if (res) {
           Promise.all(
-            confidence.map(id => {
-              return approveWord(id.file, id.wordId)
+            confidence.map(w => {
+              return approveWord(w.path, w.Id)
             })
           )
             .then(_ => {
