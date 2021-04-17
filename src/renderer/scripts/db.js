@@ -28,3 +28,4 @@ export const setConfig = (key, value) => {
 export const getConfig = (key, def = null) => {
   return config.find({ key }).then(([conf]) => conf ? conf.value : def)
 }
+
