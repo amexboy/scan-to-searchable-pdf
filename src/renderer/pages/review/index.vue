@@ -9,7 +9,7 @@
           single-expand
           show-expand
         >
-          <template v-slot:top>
+          <template #top>
             <v-toolbar flat>
               <v-toolbar-title>Flagged Files</v-toolbar-title>
               <v-spacer />
@@ -22,7 +22,7 @@
               />
             </v-toolbar>
           </template>
-          <template v-slot:item.actions="{ item }">
+          <template #item.actions="{ item }">
             <v-row>
               <!-- <v-btn small text color="red"><v-icon>mdi-lock</v-icon></v-btn> -->
               <!-- <v-btn small text color="green" @click="approveAllDialog(item.words)">
@@ -30,7 +30,7 @@
               <v-btn small text color="primary" @click="review(item)"><v-icon>mdi-eye-outline</v-icon></v-btn>
             </v-row>
           </template>
-          <template v-slot:expanded-item="{ headers, item }">
+          <template #expanded-item="{ item }">
             <td :colspan="headers.length">
               <v-list
                 dense

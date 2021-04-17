@@ -17,7 +17,7 @@
         prepend-icon="mdi-folder"
         no-action
       >
-        <template v-slot:activator>
+        <template #activator>
           <v-list-item-content>
             <v-list-item-title v-text="item.path" />
           </v-list-item-content>

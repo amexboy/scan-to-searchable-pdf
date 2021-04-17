@@ -15,9 +15,9 @@
         <v-btn text small color="green" @click="approveAllDialog">
           <v-icon v-text="'mdi-check-all'" /> &nbsp; Bulk Approve
         </v-btn>
-        <v-btn text small color="red">
+        <!-- <v-btn text small color="red">
           <v-icon v-text="'mdi-lock-open'" /> &nbsp; Unlock
-        </v-btn>
+        </v-btn> -->
         <v-spacer />
         <v-btn-toggle v-model="view" mandatory>
           <v-btn text small value="12">
