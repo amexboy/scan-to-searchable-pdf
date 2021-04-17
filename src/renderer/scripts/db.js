@@ -29,10 +29,3 @@ export const getConfig = (key, def = null) => {
   return config.find({ key }).then(([conf]) => conf ? conf.value : def)
 }
 
-export const setAppId = (key, value) => {
-  return config.update({ key }, { key, value }, { upsert: true })
-}
-
-export const getAppId = (key, def = null) => {
-  return config.find({ key }).then(([conf]) => conf ? conf.value : def)
-}
