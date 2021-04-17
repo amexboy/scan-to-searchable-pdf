@@ -101,7 +101,7 @@ export default {
         setBucketName(this.bucketName),
         setAwsAccess(this.apiKeyId, this.apiKeySecret, this.region),
         setConfig('confidence', this.confidence),
-        setConfig('appid', this.appId),        
+        setConfig('appId', this.appId),        
       ])
         .then(_ => {
           this.processing = false
