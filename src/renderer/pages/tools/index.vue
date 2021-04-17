@@ -4,7 +4,7 @@
       <v-spacer />
 
       <v-btn text @click="newRootFolder">
-        <v-icon color="success">fa-plus</v-icon> &nbsp; Add Scanned Path
+        <v-icon color="success">mdi-plus</v-icon> &nbsp; Add Scanned Path
       </v-btn>
     </v-toolbar>
 
