@@ -26,7 +26,7 @@
             <v-row>
               <!-- <v-btn small text color="red"><v-icon>mdi-lock</v-icon></v-btn> -->
               <v-btn small text color="green" @click="approveAllDialog(item.words)"><v-icon>mdi-check</v-icon></v-btn>
-              <v-btn small text color="primary"><v-icon>mdi-eye-outline</v-icon></v-btn>
+              <v-btn small text color="primary" @click="review(item)"><v-icon>mdi-eye-outline</v-icon></v-btn>
             </v-row>
           </template>
           <template v-slot:expanded-item="{ headers, item }">
@@ -54,7 +54,7 @@
                   <v-btn small text color="green" @click="approveAllDialog(item.words)">
                     <v-icon v-text="'mdi-check'" />&nbsp; Bulk Approve
                   </v-btn>
-                  <v-btn small text color="primary"><v-icon v-text="'mdi-eye-outline'" />&nbsp; Review</v-btn>
+                  <v-btn small text color="primary" @click="review(item)"><v-icon v-text="'mdi-eye-outline'" />&nbsp; Review</v-btn>
                   <v-spacer />
                   <!-- <v-btn small text color="green"><v-icon v-text="'mdi-lock'" />&nbsp; Aquire Lock</v-btn>
                   <v-btn small text color="red"><v-icon v-text="'mdi-lock-open'" />&nbsp; Release Lock</v-btn> -->
@@ -72,6 +72,7 @@ import path from 'path'
 import { getFlagedFiles, approveWord } from '@/scripts/reviews'
 import EditWord from '@/components/EditWord.vue'
 import ApproveConfidence from '@/components/ApproveConfidence.vue'
+import Review from '@/components/Review.vue'
 
 export default {
   data: () => {
@@ -114,6 +115,9 @@ export default {
     this.reload()
   },
   methods: {
+    async review (file) {
+      await this.$dialog.showAndWait(Review, { layout: 'dialog', width: '90%', persistent: true, file })
+    },
     reload () {
       getFlagedFiles()
         .then(flagged => {

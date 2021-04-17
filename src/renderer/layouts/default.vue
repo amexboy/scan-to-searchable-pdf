@@ -33,9 +33,6 @@
           <v-tab to="/review/">
             Review
           </v-tab>
-          <v-tab to="/review/file">
-            Review 2
-          </v-tab>
         </v-tabs>
         <nuxt />
       </v-card>
