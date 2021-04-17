@@ -1,5 +1,6 @@
-import { dbFactory } from '@/scripts/db'
+import { dbFactory, getConfig, getOrSetConfig, getCredential } from '@/scripts/db'
 import { processFile } from '@/scripts/process_file'
+import { S3 } from '@aws-sdk/client-s3'
 
 const flagStore = dbFactory('flags.db')
 const updateStore = dbFactory('updates.db')
@@ -54,4 +55,52 @@ export const wordUpdate = (filePath, wordId) => {
     .then(([word]) => {
       return word ? word.correction : undefined
     })
+}
+
+function getKey (file) {
+  const key = `${file}`.replace(/[/\\]/ig, '_')
+  return `searchable-pdf/lock/${key}.json`
+}
+
+export const lock = async (file, force = false) => {
+  const credentials = await getCredential()
+  const s3 = new S3(credentials)
+  const appId = await getOrSetConfig('app_id', Math.random().toString(36).substring(7))
+  const bucketName = await getConfig('bucket_name')
+  const fileKey = getKey(file)
+
+  console.log('Checking if lock exists for ', appId, bucketName, fileKey)
+
+  const appWithLock = force
+    ? null
+    : await s3.getObject({ Key: fileKey, Bucket: bucketName })
+      .then(res => {
+        return JSON.parse(res.Body.read().toString('utf-8')).appId
+      })
+      .catch(_ => {
+        console.log('Maybe', _)
+        return null
+      })
+
+  if (appWithLock != null && appWithLock !== appId) {
+    return { success: false }
+  } else if (appWithLock === appId) {
+    return { success: true }
+  }
+
+  console.log('Going to aquire lock', appWithLock, force, appId)
+
+  const uploadCommand = {
+    Body: JSON.stringify({ appId }),
+    Bucket: bucketName,
+    Key: fileKey
+  }
+
+  const lockStatus = await s3.putObject(uploadCommand)
+    .then(upload => {
+      return true
+    })
+    .catch(_ => false)
+
+  return lockStatus ? { success: true } : { success: false }
 }

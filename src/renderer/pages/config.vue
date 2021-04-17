@@ -57,8 +57,7 @@
 </template>
 
 <script>
-import { getBucketName, setBucketName, setAwsAccess, getCredential } from '@/scripts/aws'
-import { getConfig, setConfig } from '@/scripts/db'
+import { setAwsAccess, getCredential, getConfig, setConfig } from '@/scripts/db'
 
 export default {
   data () {
@@ -66,7 +65,7 @@ export default {
       processing: false,
       bucketName: '',
       confidence: '',
-      appId:'',
+      appId: '',
       region: '',
       apiKeyId: '',
       apiKeySecret: '',
@@ -74,7 +73,7 @@ export default {
     }
   },
   mounted () {
-    getBucketName()
+    getConfig('bucket_name', '')
       .then(name => {
         console.log(name)
         this.bucketName = name
@@ -84,7 +83,7 @@ export default {
         console.log(confidence)
         this.confidence = confidence
       })
-    getConfig('appId', )
+    getConfig('app_id')
       .then(appId => {
         console.log(appId)
         this.appId = appId
@@ -100,10 +99,11 @@ export default {
     save () {
       this.processing = true
       Promise.all([
-        setBucketName(this.bucketName),
+        setConfig('bucket_name', this.bucketName),
         setAwsAccess(this.apiKeyId, this.apiKeySecret, this.region),
         setConfig('confidence', this.confidence),
-        setConfig('appId', this.appId),        
+        setConfig('app_id', this.appId)
+
       ])
         .then(_ => {
           this.processing = false

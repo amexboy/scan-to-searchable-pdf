@@ -1,5 +1,5 @@
 <template>
-  <v-card :disabled="saving">
+  <v-card :loading="!ready || saving" :disabled="!ready || saving">
     <v-toolbar fixed>
       <v-row>
         <v-btn text small color="red" @click="close">
@@ -12,12 +12,14 @@
           <v-icon v-text="'mdi-reload'" />
         </v-btn> -->
         <v-spacer />
-        <v-btn text small color="green" @click="approveAllDialog">
+        <v-btn text small color="green" :disabled="!editable" @click="approveAllDialog">
           <v-icon v-text="'mdi-check-all'" /> &nbsp; Bulk Approve
         </v-btn>
-        <!-- <v-btn text small color="red">
-          <v-icon v-text="'mdi-lock-open'" /> &nbsp; Unlock
-        </v-btn> -->
+        <v-btn v-if="ready && !editable" text small color="red"
+               @click="forceLock"
+        >
+          <v-icon v-text="'mdi-lock-open'" /> &nbsp; Force Aqquire Lock
+        </v-btn>
         <v-spacer />
         <v-btn-toggle v-model="view" mandatory>
           <v-btn text small value="12">
@@ -37,7 +39,7 @@
       <v-row v-if="ready && words.length > 0" style="max-height: 500px; overflow-y: scroll">
         <v-col v-for="word in words" :key="word.Id" cols="12" :sm="view">
           <v-card>
-            <pdf-vue :word="word" @save="saveWord" />
+            <pdf-vue :editable="editable" :word="word" @save="saveWord" />
           </v-card>
         </v-col>
 
@@ -58,7 +60,7 @@
   </v-card>
 </template>
 <script>
-import { approveWord } from '@/scripts/reviews'
+import { lock, approveWord } from '@/scripts/reviews'
 import EditWord from '@/components/EditWord.vue'
 import ApproveConfidence from '@/components/ApproveConfidence.vue'
 import { splitPath } from '@/scripts/utils'
@@ -80,6 +82,7 @@ export default {
       isActive: false,
       autosave: false,
       saving: false,
+      editable: false,
       ready: false,
       pending: [],
       view: 6,
@@ -107,8 +110,26 @@ export default {
   },
   mounted () {
     this.ready = true
+    this.aqquireLock(false)
   },
   methods: {
+    forceLock () {
+      this.aqquireLock(true)
+    },
+    aqquireLock (force) {
+      this.saving = true
+      lock(this.file.path, force)
+        .then(({ success }) => {
+          this.editable = success
+        })
+        .catch(err => {
+          this.editable = false
+          this.$dialog.notify.warning('Unable to aquire lock: ' + err.message)
+        })
+        .finally(_ => {
+          this.saving = false
+        })
+    },
     close () {
       Promise.resolve(this.pending.length > 0)
         .then(pending => {
@@ -129,6 +150,9 @@ export default {
         })
     },
     saveWord (data) {
+      if (!this.editable) {
+        return
+      }
       console.log(data)
       this.pending.push(data)
       this.removeFromWords(data.word)
@@ -213,6 +237,8 @@ export default {
         } else {
           this.saving = false
         }
+      } else {
+        this.saving = false
       }
     }
   }

@@ -1,33 +1,10 @@
 import crypto from 'crypto'
 import { Textract } from '@aws-sdk/client-textract'
 import { S3 } from '@aws-sdk/client-s3'
-import { dbFactory, getConfig, setConfig } from '@/scripts/db'
+import { dbFactory, getConfig, getCredential } from '@/scripts/db'
 import { wordUpdate, flagForReview } from '@/scripts/reviews'
 const checkInterval = 3000
 const resultStore = dbFactory('resultStore.db')
-
-export const getCredential = async () => {
-  const [apiKeyId, apiKeySecret, region] = await Promise.all(['apiKeyId', 'apiKeySecret', 'region'].map(getConfig))
-  const credentials = apiKeyId && apiKeySecret ? { accessKeyId: apiKeyId, secretAccessKey: apiKeySecret } : null
-
-  return { region: region || 'us-east-1', credentials }
-}
-
-export const getBucketName = () => {
-  return getConfig('bucket_name')
-}
-
-export const setBucketName = bucketName => {
-  return setConfig('bucket_name', bucketName)
-}
-
-export const setAwsAccess = (apiKeyId, apiKeySecret, region) => {
-  return Promise.all([
-    setConfig('apiKeyId', apiKeyId),
-    setConfig('apiKeySecret', apiKeySecret),
-    setConfig('region', region)
-  ])
-}
 
 export const transform = async (fileName, result, extras) => {
   if (!result) {
@@ -133,7 +110,7 @@ export const startDocumentTextDetection = async (fileName, fileContent, type, us
   const fileId = crypto.randomBytes(16).toString('hex')
   const fileKey = `searchable-pdf/input/${fileId}.${type}`
 
-  const bucketName = await getBucketName()
+  const bucketName = await getConfig('bucket_name')
 
   const uploadCommand = {
     Body: fileContent,

@@ -1,5 +1,5 @@
 <template>
-  <v-card :loading="loading" :disabled="approved">
+  <v-card :loading="loading" :disabled="approved || !editable">
     <v-row>
       <v-col cols="12" sm="6">
         <v-list dense two-line subheader>
@@ -51,6 +51,9 @@ export default {
       type: Number,
       required: false,
       default: 3
+    },
+    editable: {
+      type: Boolean
     }
   },
   data () {
@@ -71,7 +74,6 @@ export default {
     }
   },
   mounted () {
-    console.log(this.word)
     this.drawPdf(this.word)
   },
   methods: {
@@ -88,7 +90,6 @@ export default {
 
       // Load information from the first page.
       const word = this.word
-      console.log(word)
       const page = await pdf.getPage(word.Page)
       const { Height, Left, Top, Width } = word.Geometry.BoundingBox
 
@@ -100,7 +101,6 @@ export default {
       const context = canvas.getContext('2d')
       canvas.height = viewport.height * Height + 500
       canvas.width = viewport.width
-      console.log(viewport)
 
       // Render the page into the <canvas> element.
       const renderContext = {
