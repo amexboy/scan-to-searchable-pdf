@@ -1,5 +1,5 @@
 <template>
-  <v-card :loading="words.length === 0" :disabled="saving">
+  <v-card :disabled="saving">
     <v-toolbar fixed>
       <v-row>
         <v-btn text small color="red" @click="close">
@@ -12,7 +12,7 @@
           <v-icon v-text="'mdi-reload'" />
         </v-btn> -->
         <v-spacer />
-        <v-btn text small color="green">
+        <v-btn text small color="green" @click="approveAllDialog">
           <v-icon v-text="'mdi-check-all'" /> &nbsp; Bulk Approve
         </v-btn>
         <v-btn text small color="red">
@@ -34,12 +34,13 @@
         <v-breadcrumbs :items="parents" divider="\" />
       </v-row> -->
 
-      <v-row v-if="words.length > 0" style="max-height: 500px; overflow-y: scroll">
+      <v-row v-if="ready && words.length > 0" style="max-height: 500px; overflow-y: scroll">
         <v-col v-for="word in words" :key="word.Id" cols="12" :sm="view">
           <v-card>
             <pdf-vue :word="word" @save="saveWord" />
           </v-card>
         </v-col>
+
         <v-col>
           <infinite-loading @infinite="scroll" />
           <template v-if="done">
@@ -79,6 +80,7 @@ export default {
       isActive: false,
       autosave: false,
       saving: false,
+      ready: false,
       pending: [],
       view: 6,
       max: 5,
@@ -94,7 +96,7 @@ export default {
   },
   computed: {
     words () {
-      return this.originalWords.slice(0, this.max)
+      return this.originalWords.filter(w => !w.removed).slice(0, this.max)
     },
     parents () {
       return this.file.path ? splitPath(this.file.path, true) : []
@@ -102,6 +104,9 @@ export default {
     done () {
       return this.ready && this.words.length === 0
     }
+  },
+  mounted () {
+    this.ready = true
   },
   methods: {
     close () {
@@ -126,7 +131,13 @@ export default {
     saveWord (data) {
       console.log(data)
       this.pending.push(data)
-      this.originalWords.splice(data.word.index, 1)
+      this.removeFromWords(data.word)
+    },
+    removeFromWords (word) {
+      const index = this.originalWords.indexOf(word)
+      if (index >= 0) {
+        this.originalWords.splice(index, 1)
+      }
     },
     save () {
       this.saving = true
@@ -140,10 +151,16 @@ export default {
         .finally(_ => {
           this.saving = false
         })
+        .then(_ => {
+          if (this.words.length === 0) {
+            this.close()
+          }
+        })
     },
     scroll ($state) {
-      this.max += this.max
-      if (this.max > this.file.words.length) {
+      console.log('scroll')
+      this.max += 5
+      if (this.words.length === this.originalWords.length) {
         $state.complete()
       } else {
         $state.loaded()
@@ -170,8 +187,11 @@ export default {
           })
       }
     },
-    async approveAllDialog (words) {
+    async approveAllDialog () {
+      this.saving = true
+      const words = this.originalWords
       const result = await this.$dialog.showAndWait(ApproveConfidence, { confidence: 1 })
+
       if (result && !result.cancel) {
         const confidence = words.filter(w => w.Confidence > result.confidence)
         console.log('Words above confidence', confidence)
@@ -183,12 +203,15 @@ export default {
         if (res) {
           Promise.all(
             confidence.map(w => {
-              return approveWord(w.path, w.Id)
+              return approveWord(w.path, w.Id).then(_ => this.removeFromWords(w))
             })
           )
             .then(_ => {
+              this.saving = false
               this.$dialog.notify.success(`Approved all words aboove set confidence`)
             })
+        } else {
+          this.saving = false
         }
       }
     }

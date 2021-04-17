@@ -9,6 +9,9 @@
                 Word detected
               </v-list-item-subtitle>
               <v-list-item-title v-text="word.Text" />
+              <v-list-item-subtitle>
+                ({{ parseFloat(word.Confidence).toFixed(2) }}% confidence)
+              </v-list-item-subtitle>
             </v-list-item-content>
           </v-list-item>
           <v-list-item>
