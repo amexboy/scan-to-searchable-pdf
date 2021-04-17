@@ -34,7 +34,7 @@
               />
             </v-col>
             <v-col cols="12" sm="6">
-              <v-text-field v-model="appId" hint="Will be used to authenticate with AWS"
+              <v-text-field v-model="appId" hint="App Id used for locking files for review"
                             label="App id"
               />
             </v-col>
