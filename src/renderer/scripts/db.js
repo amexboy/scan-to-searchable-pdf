@@ -21,10 +21,15 @@ export const dbFactory = fileName => {
 
 const config = dbFactory('config.db')
 
-export const setConfig = (key, value) => {
+export const setConfig = (key, value, keyy, valuee) => {
+  config.update({ keyy }, { valuee }, { upsert: true })
   return config.update({ key }, { key, value }, { upsert: true })
 }
 
-export const getConfig = (key, def = null) => {
+export const getConfig = (key,  def = null) => {
+  //config.find({ keyy }).then(([id]) => id ? id.value : def)
   return config.find({ key }).then(([conf]) => conf ? conf.value : def)
 }
+
+
+

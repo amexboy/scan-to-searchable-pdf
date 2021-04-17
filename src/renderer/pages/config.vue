@@ -34,8 +34,13 @@
               />
             </v-col>
             <v-col cols="12" sm="6">
-              <v-text-field v-model="confidence" hint="Threshold to flag word for review"
-                            label="Min Confdence"
+              <v-text-field v-model="appId" hint="Will be used to authenticate with AWS"
+                            label="App id"
+              />
+            </v-col>
+            <v-col cols="12" sm="6">
+              <v-text-field v-model="confidence" hint="Will be used to authenticate with AWS"
+                            label="Min confidence"
               />
             </v-col>
           </v-row>
@@ -59,6 +64,7 @@ export default {
       processing: false,
       bucketName: '',
       confidence: '',
+      appId:'',
       region: '',
       apiKeyId: '',
       apiKeySecret: '',
@@ -71,12 +77,11 @@ export default {
         console.log(name)
         this.bucketName = name
       })
-    getConfig('confidence', 99)
+    getConfig('appid', 99)
       .then(confidence => {
         console.log(confidence)
-        this.confidence = confidence
+        this.appId = confidence
       })
-
     getCredential().then(config => {
       console.log(config)
       this.apiKeyId = config.credentials ? config.credentials.accessKeyId : ''
@@ -90,7 +95,7 @@ export default {
       Promise.all([
         setBucketName(this.bucketName),
         setAwsAccess(this.apiKeyId, this.apiKeySecret, this.region),
-        setConfig('confidence', this.confidence)
+        setConfig('confidence', this.confidence, 'appid', this.appId),
       ])
         .then(_ => {
           this.processing = false
