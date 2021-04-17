@@ -1,16 +1,16 @@
 <template>
-  <v-card>
+  <v-card :loading="words.length === 0" :disabled="saving">
     <v-toolbar fixed>
       <v-row>
         <v-btn text small color="red" @click="close">
           <v-icon v-text="'mdi-close'" />
         </v-btn>
-        <v-btn v-if="!autosave" text small :disabled="pending.length == 0">
+        <v-btn v-if="!autosave" text small :disabled="pending.length == 0" @click="save">
           <v-icon color="primary" v-text="'mdi-content-save'" />
         </v-btn>
-        <v-btn text small>
+        <!-- <v-btn text small>
           <v-icon v-text="'mdi-reload'" />
-        </v-btn>
+        </v-btn> -->
         <v-spacer />
         <v-btn text small color="green">
           <v-icon v-text="'mdi-check-all'" /> &nbsp; Bulk Approve
@@ -34,10 +34,10 @@
         <v-breadcrumbs :items="parents" divider="\" />
       </v-row> -->
 
-      <v-row v-if="ready" style="max-height: 500px; overflow-y: scroll">
+      <v-row v-if="words.length > 0" style="max-height: 500px; overflow-y: scroll">
         <v-col v-for="word in words" :key="word.Id" cols="12" :sm="view">
           <v-card>
-            <pdf-vue :word="word" @save="save" />
+            <pdf-vue :word="word" @save="saveWord" />
           </v-card>
         </v-col>
         <v-col>
@@ -57,7 +57,7 @@
   </v-card>
 </template>
 <script>
-import { getFlagedFiles, approveWord } from '@/scripts/reviews'
+import { approveWord } from '@/scripts/reviews'
 import EditWord from '@/components/EditWord.vue'
 import ApproveConfidence from '@/components/ApproveConfidence.vue'
 import { splitPath } from '@/scripts/utils'
@@ -73,16 +73,16 @@ export default {
       default: () => ({ words: [] })
     }
   },
-  data: () => {
+  data () {
     return {
+      originalWords: this.file.words.slice(),
       isActive: false,
       autosave: false,
+      saving: false,
       pending: [],
-      ready: false,
       view: 6,
       max: 5,
       search: '',
-      flagged: {},
       headers: [{ text: 'File Name', value: 'name' },
         { text: 'Flagged Words', value: 'wordsCount' },
         { text: 'Actions', value: 'actions', sortable: false }
@@ -94,7 +94,7 @@ export default {
   },
   computed: {
     words () {
-      return this.file.words.slice(0, this.max)
+      return this.originalWords.slice(0, this.max)
     },
     parents () {
       return this.file.path ? splitPath(this.file.path, true) : []
@@ -103,29 +103,43 @@ export default {
       return this.ready && this.words.length === 0
     }
   },
-  watch: {
-    items (to) {
-      this.active = to[0] ? to[0].children[0].id : null
-    }
-  },
-  mounted () {
-    this.reload()
-  },
   methods: {
     close () {
-      // const res = await this.$dialog.confirm({
-      // text: `You have ${this.pending.length} unsaved items. You will loose your changes`,
-      // title: 'Are you sure?'
-      // })
-      // if (res) {
-      this.$emit('submit', { cancel: true })
-      this.isActive = false
-      // }
+      Promise.resolve(this.pending.length > 0)
+        .then(pending => {
+          if (pending) {
+            return this.$dialog.confirm({
+              text: `You have ${this.pending.length} unsaved items. You will loose your changes`,
+              title: 'Are you sure?'
+            })
+          }
+
+          return true
+        })
+        .then(close => {
+          if (close) {
+            this.$emit('submit', { cancel: true })
+            this.isActive = false
+          }
+        })
     },
-    save (data) {
+    saveWord (data) {
       console.log(data)
       this.pending.push(data)
-      this.flagged[data.file].words.splice(data.word.index, 1)
+      this.originalWords.splice(data.word.index, 1)
+    },
+    save () {
+      this.saving = true
+      Promise.all(this.pending.map(w => {
+        return approveWord(w.word.path, w.word.Id, w.newWord)
+      }))
+        .then(_ => {
+          this.$dialog.notify.success('Changes were succesfully saved')
+          this.pending = []
+        })
+        .finally(_ => {
+          this.saving = false
+        })
     },
     scroll ($state) {
       this.max += this.max
@@ -134,16 +148,6 @@ export default {
       } else {
         $state.loaded()
       }
-    },
-    reload () {
-      getFlagedFiles()
-        .then(flagged => {
-          console.log(flagged)
-          console.log(Object.values(flagged))
-          this.flagged = flagged || {}
-          this.ready = true
-          return flagged
-        })
     },
     async edit (id) {
       const result = await this.$dialog.showAndWait(EditWord, { word: id.text })
@@ -184,8 +188,6 @@ export default {
           )
             .then(_ => {
               this.$dialog.notify.success(`Approved all words aboove set confidence`)
-
-              this.reload()
             })
         }
       }

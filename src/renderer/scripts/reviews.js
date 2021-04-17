@@ -27,7 +27,7 @@ export const approveWord = (filePath, wordId, newWord) => {
   return flagStore.find({ filePath, wordId })
     .then(res => {
       const word = res[0]
-      console.log('Removing flagged word', word, newWord)
+      console.log('Removing flagged word', filePath, wordId, word, newWord)
       return updateStore
         .update({ filePath, wordId }, { filePath, wordId, correction: newWord || word.word.Text }, { upsert: true })
         .then(_ => word)

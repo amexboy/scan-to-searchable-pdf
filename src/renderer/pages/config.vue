@@ -43,7 +43,9 @@
       </v-list-item-group>
       <v-list-item>
         <v-spacer />
-        <v-btn text :loading="processing" @click="save"><v-icon>mdi-save</v-icon> Save</v-btn>
+        <v-btn text :loading="processing" color="green" @click="save">
+          <v-icon>mdi-content-save</v-icon> &nbsp; Save
+        </v-btn>
       </v-list-item>
     </v-list>
   </v-card-text>

@@ -25,7 +25,8 @@
           <template v-slot:item.actions="{ item }">
             <v-row>
               <!-- <v-btn small text color="red"><v-icon>mdi-lock</v-icon></v-btn> -->
-              <v-btn small text color="green" @click="approveAllDialog(item.words)"><v-icon>mdi-check</v-icon></v-btn>
+              <!-- <v-btn small text color="green" @click="approveAllDialog(item.words)">
+                <v-icon>mdi-check</v-icon></v-btn> -->
               <v-btn small text color="primary" @click="review(item)"><v-icon>mdi-eye-outline</v-icon></v-btn>
             </v-row>
           </template>
@@ -51,10 +52,12 @@
                 </v-list-item>
 
                 <v-list-item>
-                  <v-btn small text color="green" @click="approveAllDialog(item.words)">
-                    <v-icon v-text="'mdi-check'" />&nbsp; Bulk Approve
+                  <!-- <v-btn small text color="green" @click="approveAllDialog(item.words)"> -->
+                  <!-- <v-icon v-text="'mdi-check'" />&nbsp; Bulk Approve -->
+                  <!-- </v-btn> -->
+                  <v-btn small text color="primary" @click="review(item)">
+                    <v-icon v-text="'mdi-eye-outline'" />&nbsp; Review
                   </v-btn>
-                  <v-btn small text color="primary" @click="review(item)"><v-icon v-text="'mdi-eye-outline'" />&nbsp; Review</v-btn>
                   <v-spacer />
                   <!-- <v-btn small text color="green"><v-icon v-text="'mdi-lock'" />&nbsp; Aquire Lock</v-btn>
                   <v-btn small text color="red"><v-icon v-text="'mdi-lock-open'" />&nbsp; Release Lock</v-btn> -->
@@ -117,6 +120,7 @@ export default {
   methods: {
     async review (file) {
       await this.$dialog.showAndWait(Review, { layout: 'dialog', width: '90%', persistent: true, file })
+      this.reload()
     },
     reload () {
       getFlagedFiles()

@@ -121,9 +121,9 @@
             <v-btn :loading="processing"
                    color="primary" text @click="save"
             >
-              <v-icon small>fa-check</v-icon> &nbsp; Save
+              <v-icon small>mdi-check</v-icon> &nbsp; Save
             </v-btn>
-            <v-btn color="red" text @click="dialog = false"><v-icon small>fa-times</v-icon> &nbsp; Cancel</v-btn>
+            <v-btn color="red" text @click="dialog = false"><v-icon small>mdi-close</v-icon> &nbsp; Cancel</v-btn>
           </v-card-actions>
         </v-card>
       </v-form>
