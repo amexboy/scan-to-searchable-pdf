@@ -39,7 +39,7 @@
               />
             </v-col>
             <v-col cols="12" sm="6">
-              <v-text-field v-model="confidence" hint="Will be used to authenticate with AWS"
+              <v-text-field v-model="confidence" hint="The minimum confidence to decide to flag words for review"
                             label="Min confidence"
               />
             </v-col>
