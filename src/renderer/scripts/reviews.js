@@ -5,23 +5,141 @@ import { S3 } from '@aws-sdk/client-s3'
 const flagStore = dbFactory('flags.db')
 const updateStore = dbFactory('updates.db')
 
-export const flagForReview = (filePath, word, extras) => {
-  console.log(`Flagged ${filePath} with word id ${word.Id}`, word, extras)
-  return flagStore.update({ filePath, wordId: word.Id }, { filePath, wordId: word.Id, word, extras }, { upsert: true })
+function getPrefix (type) {
+  return `searchable-pdf/metadata/${type}`
+}
+function getKey (type, file) {
+  const key = `${file}`.replace(/[/\\]/ig, '_')
+  return `${getPrefix(type)}/${key}.json`
 }
 
-export const getFlagedFiles = () => {
-  return flagStore.find({})
-    .then(res => {
-      return res.reduce((res, flag) => {
-        const old = res[flag.filePath] || { wordCount: 0, words: [], extras: flag.extras }
-        old.wordCount++
-        old.words.push({ ...flag.word, path: flag.filePath })
+async function uploadS3 (key, data, credentials, bucketName) {
+  credentials = credentials || await getCredential()
+  const s3 = new S3(credentials)
+  bucketName = bucketName || await getConfig('bucket_name')
 
-        res[flag.filePath] = old
-        return res
-      }, {})
+  const uploadCommand = {
+    Body: JSON.stringify(data),
+    Bucket: bucketName,
+    Key: key
+  }
+
+  return s3.putObject(uploadCommand)
+}
+
+async function getFromS3 (key, credentials, bucketName) {
+  credentials = credentials || await getCredential()
+  const s3 = new S3(credentials)
+  bucketName = bucketName || await getConfig('bucket_name')
+
+  const request = {
+    Bucket: bucketName,
+    Key: key
+  }
+
+  return s3.getObject(request)
+    .then(res => {
+      return res.Body.read()
+      // return getStream.buffer(res.Body)
+      // setTimeout(() => res.Body.addListener('end', console.log), 1000)
+      // return new Promise(resolve => setTimeout(() => resolve(res.Body.toString()), 3000))
+      // return new Promise(resolve => setTimeout(() => resolve(res.Body.read()), 1000))
     })
+    .then(body => {
+      console.log(body)
+
+      return JSON.parse(body.toString('utf-8'))
+    })
+}
+
+export const flagForReview = async (filePath, words, extras) => {
+  const fileKey = getKey('flags', filePath)
+  const data = {
+    extras,
+    words: words.map(({ Text, Confidence, Page, Geometry }) => ({ Text, Confidence, Page, Geometry })),
+    path: filePath,
+    wordsCount: words.length
+  }
+
+  const uploadResult = await uploadS3(fileKey, data)
+  console.log('Flags uploaded succesfully', uploadResult)
+
+  return uploadResult
+
+  // return Promise.all(
+  //   words.map(word => {
+  //     console.log(`Flagged ${filePath} with word id ${word.Id}`, word, extras)
+  //     return flagStore.update({ filePath, wordId: word.Id },
+  //       { filePath, wordId: word.Id, word, extras }, { upsert: true })
+  //   })
+  // )
+}
+
+const queryS3 = (key, query, bucketName, s3) => {
+  const command = { Bucket: bucketName,
+    Key: key,
+    ExpressionType: 'SQL',
+    InputSerialization: { JSON: { Type: 'DOCUMENT' } },
+    OutputSerialization: { JSON: { RecordDelimiter: '\n' } },
+    Expression: query }
+
+  return s3.selectObjectContent(command)
+    .then(async res => {
+      for await (const x of res.Payload) {
+        if (x.Records) {
+          const str = new TextDecoder().decode(x.Records.Payload)
+
+          return JSON.parse(str)
+        }
+      }
+
+      return {}
+    })
+}
+
+export const getFlagedFiles = async () => {
+  const prefix = getPrefix('flags')
+
+  const credentials = await getCredential()
+  const s3 = new S3(credentials)
+  const bucketName = await getConfig('bucket_name')
+
+  const request = {
+    Bucket: bucketName,
+    Prefix: prefix
+  }
+
+  const files = await s3.listObjects(request)
+    .then(res => res.Contents)
+    .catch(err => {
+      console.log(err)
+      return []
+    })
+
+  console.log('Flagged objects', files, s3)
+  const query = 'SELECT s.path, s.extras, s.wordsCount FROM s3object s LIMIT 1'
+
+  return Promise.all(
+    files.map(f => f.Key)
+      .map(key => queryS3(key, query, bucketName, s3)))
+
+  // return flagStore.find({})
+  //   .then(res => {
+  //     return res.reduce((res, flag) => {
+  //       const old = res[flag.filePath] || { wordCount: 0, words: [], extras: flag.extras }
+  //       old.wordCount++
+  //       old.words.push({ ...flag.word, path: flag.filePath })
+
+  //       res[flag.filePath] = old
+  //       return res
+  //     }, {})
+  //   })
+}
+
+export const getFlaggedWords = (filePath, page, pageSize = 5) => {
+  // const fileKey = getKey('flags', filePath)
+
+  return []
 }
 
 export const approveWord = (filePath, wordId, newWord) => {
@@ -57,25 +175,19 @@ export const wordUpdate = (filePath, wordId) => {
     })
 }
 
-function getKey (file) {
-  const key = `${file}`.replace(/[/\\]/ig, '_')
-  return `searchable-pdf/lock/${key}.json`
-}
-
 export const lock = async (file, force = false) => {
   const credentials = await getCredential()
-  const s3 = new S3(credentials)
   const appId = await getOrSetConfig('app_id', Math.random().toString(36).substring(7))
   const bucketName = await getConfig('bucket_name')
-  const fileKey = getKey(file)
+  const fileKey = getKey('lock', file)
 
   console.log('Checking if lock exists for ', appId, bucketName, fileKey)
 
   const appWithLock = force
     ? null
-    : await s3.getObject({ Key: fileKey, Bucket: bucketName })
+    : await getFromS3(fileKey, credentials, bucketName)
       .then(res => {
-        return JSON.parse(res.Body.read().toString('utf-8')).appId
+        return res.appId
       })
       .catch(_ => {
         console.log('Maybe', _)
@@ -90,13 +202,7 @@ export const lock = async (file, force = false) => {
 
   console.log('Going to aquire lock', appWithLock, force, appId)
 
-  const uploadCommand = {
-    Body: JSON.stringify({ appId }),
-    Bucket: bucketName,
-    Key: fileKey
-  }
-
-  const lockStatus = await s3.putObject(uploadCommand)
+  const lockStatus = await uploadS3(fileKey, { appId }, credentials, bucketName)
     .then(upload => {
       return true
     })

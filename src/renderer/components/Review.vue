@@ -60,7 +60,7 @@
   </v-card>
 </template>
 <script>
-import { lock, approveWord } from '@/scripts/reviews'
+import { lock, approveWord, getFlaggedWords } from '@/scripts/reviews'
 import EditWord from '@/components/EditWord.vue'
 import ApproveConfidence from '@/components/ApproveConfidence.vue'
 import { splitPath } from '@/scripts/utils'
@@ -78,7 +78,7 @@ export default {
   },
   data () {
     return {
-      originalWords: this.file.words.slice(),
+      originalWords: [],
       isActive: false,
       autosave: false,
       saving: false,
@@ -111,6 +111,9 @@ export default {
   mounted () {
     this.ready = true
     this.aqquireLock(false)
+      .then(async () => {
+        this.originalWords = getFlaggedWords(this.file.paht, 0)
+      })
   },
   methods: {
     forceLock () {
@@ -118,7 +121,7 @@ export default {
     },
     aqquireLock (force) {
       this.saving = true
-      lock(this.file.path, force)
+      return lock(this.file.path, force)
         .then(({ success }) => {
           this.editable = success
         })

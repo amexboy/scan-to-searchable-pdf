@@ -10,6 +10,8 @@ export const transform = async (fileName, result, extras) => {
   if (!result) {
     return result
   }
+
+  const flags = []
   const confidence = await getConfig('confidence', 99)
   const words = (await Promise.all(result.Blocks
     .filter(t => t.BlockType === 'WORD')
@@ -21,7 +23,7 @@ export const transform = async (fileName, result, extras) => {
         t.Confidence = 100
       }
       if (t.Confidence < confidence) {
-        flagForReview(fileName, t, extras)
+        flags.push(t)
       }
       return t
     })
@@ -30,6 +32,12 @@ export const transform = async (fileName, result, extras) => {
       res[word.Id] = word
       return res
     }, {})
+
+  if (flags.length > 0) {
+    // this is async, we are not waiting for it
+    flagForReview(fileName, flags, extras)
+    // todo: cancel operation when there is any flag
+  }
 
   const lines = result.Blocks
     .filter(t => t.BlockType === 'LINE')
@@ -52,7 +60,7 @@ export const transform = async (fileName, result, extras) => {
       }
     })
 
-  return { lines, pages, words }
+  return { lines, pages, words, flagged: flags }
 }
 
 export const detectDocumentText = async (fileName, fileContent, useCached, extras) => {
