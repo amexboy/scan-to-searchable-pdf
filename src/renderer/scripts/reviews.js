@@ -56,7 +56,9 @@ export const flagForReview = async (filePath, words, extras) => {
   const fileKey = getKey('flags', filePath)
   const data = {
     extras,
-    words: words.map(({ Text, Confidence, Page, Geometry }) => ({ Text, Confidence, Page, Geometry })),
+    words: words.map(({ Id, Text, Confidence, Page, Geometry }) =>
+      ({ Id, Text, Confidence, Page, Geometry })),
+    // ({ Id, Text, Confidence, Page, Geometry: { BoundingBox: Geometry.BoundingBox } })),
     path: filePath,
     wordsCount: words.length
   }
@@ -85,15 +87,14 @@ const queryS3 = (key, query, bucketName, s3) => {
 
   return s3.selectObjectContent(command)
     .then(async res => {
+      let out = ''
       for await (const x of res.Payload) {
         if (x.Records) {
           const str = new TextDecoder().decode(x.Records.Payload)
-
-          return JSON.parse(str)
+          out += str
         }
       }
-
-      return {}
+      return JSON.parse(out)
     })
 }
 
@@ -136,10 +137,44 @@ export const getFlagedFiles = async () => {
   //   })
 }
 
-export const getFlaggedWords = (filePath, page, pageSize = 5) => {
-  // const fileKey = getKey('flags', filePath)
+export const getFlaggedWords = async (filePath, page, pageSize = 5) => {
+  const fileKey = getKey('flags', filePath)
+  console.log(fileKey)
 
-  return []
+  const stored = await flagStore.find({ fileKey })
+  console.log(stored)
+  if (stored.length > 0) {
+    return stored[0].words
+  }
+  const credentials = await getCredential()
+  const s3 = new S3(credentials)
+  const bucketName = await getConfig('bucket_name')
+
+  const query = 'SELECT s.words FROM s3object s'
+  const res = await queryS3(fileKey, query, bucketName, s3)
+  console.log(res)
+  flagStore.update({ fileKey }, { fileKey, words: res.words }, { upsert: true })
+  return res.words
+}
+
+export const approveWords = async (filePath, pending) => {
+  console.log(pending)
+
+  return Promise.all(
+    pending.map(p => approveWord(filePath, p.word.Id, p.newWord))
+  )
+  // const fileKey = getKey('corrections', filePath)
+  // const data = {
+  //   corrections: pending.map(w =>
+  //     ({ wordId: w.Id, newWord: w.newWord })),
+  //   path: filePath,
+  //   count: pending.length
+  // }
+
+  // const uploadResult = await uploadS3(fileKey, data)
+  // console.log('Flags uploaded succesfully', uploadResult)
+
+  // return uploadResult
 }
 
 export const approveWord = (filePath, wordId, newWord) => {

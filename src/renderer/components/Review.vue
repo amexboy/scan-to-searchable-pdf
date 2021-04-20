@@ -15,7 +15,7 @@
         <v-btn text small color="green" :disabled="!editable" @click="approveAllDialog">
           <v-icon v-text="'mdi-check-all'" /> &nbsp; Bulk Approve
         </v-btn>
-        <v-btn v-if="ready && !editable" text small color="red"
+        <v-btn v-if="ready && editable && !hasLock" text small color="red"
                @click="forceLock"
         >
           <v-icon v-text="'mdi-lock-open'" /> &nbsp; Force Aqquire Lock
@@ -39,7 +39,7 @@
       <v-row v-if="ready && words.length > 0" style="max-height: 500px; overflow-y: scroll">
         <v-col v-for="word in words" :key="word.Id" cols="12" :sm="view">
           <v-card>
-            <pdf-vue :editable="editable" :word="word" @save="saveWord" />
+            <pdf-vue :editable="editable" :word="word" :path="file.path" @save="saveWord" />
           </v-card>
         </v-col>
 
@@ -60,7 +60,7 @@
   </v-card>
 </template>
 <script>
-import { lock, approveWord, getFlaggedWords } from '@/scripts/reviews'
+import { lock, approveWords, getFlaggedWords } from '@/scripts/reviews'
 import EditWord from '@/components/EditWord.vue'
 import ApproveConfidence from '@/components/ApproveConfidence.vue'
 import { splitPath } from '@/scripts/utils'
@@ -74,6 +74,9 @@ export default {
       type: Object,
       require: true,
       default: () => ({ words: [] })
+    },
+    editable: {
+      type: Boolean
     }
   },
   data () {
@@ -82,9 +85,9 @@ export default {
       isActive: false,
       autosave: false,
       saving: false,
-      editable: false,
       ready: false,
       pending: [],
+      hasLock: false,
       view: 6,
       max: 5,
       search: '',
@@ -106,14 +109,17 @@ export default {
     },
     done () {
       return this.ready && this.words.length === 0
+    },
+    canEdit () {
+      return this.editable && this.hasLock
     }
   },
   mounted () {
     this.ready = true
-    this.aqquireLock(false)
-      .then(async () => {
-        this.originalWords = getFlaggedWords(this.file.paht, 0)
-      })
+    const init = this.editable ? this.aqquireLock(false) : Promise.resolve(false)
+    init.then(async () => {
+      this.originalWords = await getFlaggedWords(this.file.path, 0)
+    })
   },
   methods: {
     forceLock () {
@@ -123,10 +129,10 @@ export default {
       this.saving = true
       return lock(this.file.path, force)
         .then(({ success }) => {
-          this.editable = success
+          this.hasLock = success
         })
         .catch(err => {
-          this.editable = false
+          this.hasLock = false
           this.$dialog.notify.warning('Unable to aquire lock: ' + err.message)
         })
         .finally(_ => {
@@ -168,9 +174,7 @@ export default {
     },
     save () {
       this.saving = true
-      Promise.all(this.pending.map(w => {
-        return approveWord(w.word.path, w.word.Id, w.newWord)
-      }))
+      return approveWords(this.file.path, this.pending)
         .then(_ => {
           this.$dialog.notify.success('Changes were succesfully saved')
           this.pending = []

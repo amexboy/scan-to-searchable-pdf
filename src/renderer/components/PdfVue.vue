@@ -25,11 +25,11 @@
         </v-list>
       </v-col>
       <v-col cols="12" sm="5">
-        <v-text-field v-model="newWord"
-                      label="Update"
-                      :rules="[i => !!i || 'Required']"
-                      append-outer-icon="mdi-check"
-                      @click:append-outer="save"
+        <v-textarea v-model="newWord"
+                    label="Update"
+                    :rules="[i => !!i || 'Required']"
+                    append-outer-icon="mdi-check"
+                    @click:append-outer="save"
         />
       </v-col>
       <v-col cols="12" xs="12">
@@ -43,6 +43,11 @@ const pdfjsLib = require('pdfjs-dist')
 
 export default {
   props: {
+    path: {
+      type: String,
+      require: true,
+      default: ''
+    },
     word: {
       type: Object,
       required: true
@@ -65,7 +70,7 @@ export default {
   },
   computed: {
     fileName () {
-      return this.word.path
+      return this.path
     },
     file () {
       if (!this.fileName) return undefined
