@@ -138,43 +138,50 @@ export const getFlagedFiles = async () => {
 }
 
 export const getFlaggedWords = async (filePath, page, pageSize = 5) => {
+  const credentials = await getCredential()
+  const s3 = new S3(credentials)
+  const bucketName = await getConfig('bucket_name')
+
+  const correctionsKey = getKey('corrections', filePath)
+  const corrections = 'SELECT * FROM s3object s'
+  const correctionsRes = await queryS3(correctionsKey, corrections, bucketName, s3).catch(_ => ({ corrections: [] }))
+  console.log(correctionsRes)
+
   const fileKey = getKey('flags', filePath)
   console.log(fileKey)
 
   const stored = await flagStore.find({ fileKey })
   console.log(stored)
   if (stored.length > 0) {
-    return stored[0].words
+    return { words: stored[0].words, corrections: correctionsRes.corrections }
   }
-  const credentials = await getCredential()
-  const s3 = new S3(credentials)
-  const bucketName = await getConfig('bucket_name')
 
   const query = 'SELECT s.words FROM s3object s'
   const res = await queryS3(fileKey, query, bucketName, s3)
-  console.log(res)
   flagStore.update({ fileKey }, { fileKey, words: res.words }, { upsert: true })
-  return res.words
+
+  return { words: res.words, corrections: correctionsRes.corrections }
 }
 
 export const approveWords = async (filePath, pending) => {
   console.log(pending)
 
-  return Promise.all(
+  // Saving to local db
+  Promise.all(
     pending.map(p => approveWord(filePath, p.word.Id, p.newWord))
   )
-  // const fileKey = getKey('corrections', filePath)
-  // const data = {
-  //   corrections: pending.map(w =>
-  //     ({ wordId: w.Id, newWord: w.newWord })),
-  //   path: filePath,
-  //   count: pending.length
-  // }
+  const fileKey = getKey('corrections', filePath)
+  const data = {
+    corrections: pending.map(w =>
+      ({ wordId: w.Id, newWord: w.newWord })),
+    path: filePath,
+    count: pending.length
+  }
 
-  // const uploadResult = await uploadS3(fileKey, data)
-  // console.log('Flags uploaded succesfully', uploadResult)
+  const uploadResult = await uploadS3(fileKey, data)
+  console.log('Flags uploaded succesfully', uploadResult)
 
-  // return uploadResult
+  return uploadResult
 }
 
 export const approveWord = (filePath, wordId, newWord) => {

@@ -82,6 +82,7 @@ export default {
   data () {
     return {
       originalWords: [],
+      corrections: [],
       isActive: false,
       autosave: false,
       saving: false,
@@ -94,9 +95,6 @@ export default {
       headers: [{ text: 'File Name', value: 'name' },
         { text: 'Flagged Words', value: 'wordsCount' },
         { text: 'Actions', value: 'actions', sortable: false }
-        // { text: 'Path', value: 'path' },
-        // { text: 'Input', value: 'input' },
-        // { text: 'Output', value: 'output' }
       ]
     }
   },
@@ -115,10 +113,12 @@ export default {
     }
   },
   mounted () {
-    this.ready = true
     const init = this.editable ? this.aqquireLock(false) : Promise.resolve(false)
     init.then(async () => {
-      this.originalWords = await getFlaggedWords(this.file.path, 0)
+      const res = await getFlaggedWords(this.file.path, 0)
+      this.ready = true
+      this.originalWords = res.words
+      this.correctons = res.correctons
     })
   },
   methods: {
