@@ -39,7 +39,7 @@
       <v-row v-if="ready && words.length > 0" style="max-height: 500px; overflow-y: scroll">
         <v-col v-for="word in words" :key="word.Id" cols="12" :sm="view">
           <v-card>
-            <pdf-vue :editable="editable" :word="word" :path="file.path" @save="saveWord" />
+            <pdf-vue :editable="editable" :word="word" :path="file.path" :cache-file="cacheFile" @save="saveWord" />
           </v-card>
         </v-col>
 
@@ -60,7 +60,7 @@
   </v-card>
 </template>
 <script>
-import { lock, approveWords, getFlaggedWords } from '@/scripts/reviews'
+import { lock, approveWords, getFlaggedWords, unlock } from '@/scripts/reviews'
 import EditWord from '@/components/EditWord.vue'
 import ApproveConfidence from '@/components/ApproveConfidence.vue'
 import { splitPath } from '@/scripts/utils'
@@ -83,6 +83,7 @@ export default {
     return {
       originalWords: [],
       corrections: [],
+      cacheFile: null,
       isActive: false,
       autosave: false,
       saving: false,
@@ -100,7 +101,19 @@ export default {
   },
   computed: {
     words () {
-      return this.originalWords.filter(w => !w.removed).slice(0, this.max)
+      return this.originalWords
+        .filter(w => !w.removed)
+        .filter(w => !this.hideWordIds.includes(w.Id))
+        .slice(0, this.max)
+    },
+    hideWordIds () {
+      return [...this.correctionsIds, ...this.pendingWordIds]
+    },
+    pendingWordIds () {
+      return this.pending.map(w => w.word.Id)
+    },
+    correctionsIds () {
+      return this.corrections.map(c => c.wordId)
     },
     parents () {
       return this.file.path ? splitPath(this.file.path, true) : []
@@ -116,9 +129,10 @@ export default {
     const init = this.editable ? this.aqquireLock(false) : Promise.resolve(false)
     init.then(async () => {
       const res = await getFlaggedWords(this.file.path, 0)
-      this.ready = true
       this.originalWords = res.words
       this.correctons = res.correctons
+      this.cacheFile = res.cacheFile
+      this.ready = true
     })
   },
   methods: {
@@ -140,6 +154,7 @@ export default {
         })
     },
     close () {
+      this.saving = true
       Promise.resolve(this.pending.length > 0)
         .then(pending => {
           if (pending) {
@@ -151,7 +166,14 @@ export default {
 
           return true
         })
+        .then(async close => {
+          if (close) {
+            return unlock(this.file.path).then(_ => true)
+          }
+          return false
+        })
         .then(close => {
+          console.log('Released lock')
           if (close) {
             this.$emit('submit', { cancel: true })
             this.isActive = false
@@ -204,20 +226,6 @@ export default {
         this.approve(id, result.update)
       }
     },
-    async approve (id, newWord) {
-      const res = await this.$dialog.confirm({
-        text: newWord ? `Updating word to ${newWord} ` : `Approving word as correct!`,
-        title: 'Are you sure?'
-      })
-      if (res) {
-        approveWord(id.file, id.wordId, newWord)
-          .then(_ => {
-            this.$dialog.notify.success(`Updated word for ${id.file}`)
-
-            this.reload()
-          })
-      }
-    },
     async approveAllDialog () {
       this.saving = true
       const words = this.originalWords
@@ -232,11 +240,10 @@ export default {
           title: 'Are you sure?'
         })
         if (res) {
-          Promise.all(
-            confidence.map(w => {
-              return approveWord(w.path, w.Id).then(_ => this.removeFromWords(w))
-            })
-          )
+          confidence.forEach(w => {
+            this.saveWord({ file: this.path, word: w, newWord: w.Text })// .then(_ => this.removeFromWords(w))
+          })
+          this.save()
             .then(_ => {
               this.saving = false
               this.$dialog.notify.success(`Approved all words aboove set confidence`)

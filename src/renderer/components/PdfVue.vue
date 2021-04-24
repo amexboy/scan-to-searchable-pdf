@@ -59,6 +59,11 @@ export default {
     },
     editable: {
       type: Boolean
+    },
+    cacheFile: {
+      type: String,
+      required: false,
+      default: null
     }
   },
   data () {
@@ -69,13 +74,10 @@ export default {
     }
   },
   computed: {
-    fileName () {
-      return this.path
-    },
     file () {
-      if (!this.fileName) return undefined
+      if (!this.path) return undefined
 
-      return `file://${this.fileName}`
+      return `file://${this.cacheFile || this.path}`
     }
   },
   mounted () {
@@ -90,6 +92,9 @@ export default {
       if (!id) {
         return
       }
+
+      console.log('Using file', this.file)
+
       const loadingTask = pdfjsLib.getDocument(this.file)
       const pdf = await loadingTask.promise
 

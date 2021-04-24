@@ -1,12 +1,18 @@
 import crypto from 'crypto'
 import { Textract } from '@aws-sdk/client-textract'
-import { S3 } from '@aws-sdk/client-s3'
-import { dbFactory, getConfig, getCredential } from '@/scripts/db'
-import { wordUpdate, flagForReview } from '@/scripts/reviews'
+import { GetObjectCommand, S3 } from '@aws-sdk/client-s3'
+import { getConfig, getCredential } from '@/scripts/db'
 const checkInterval = 3000
-const resultStore = dbFactory('resultStore.db')
 
-export const transform = async (fileName, result, extras) => {
+export const getMetadataPrefix = type => {
+  return `searchable-pdf/metadata/${type}`
+}
+export const getMetadataKey = (type, file, suffix = 'json') => {
+  const key = `${file}`.replace(/[:/\\]/ig, '_')
+  return `${getMetadataPrefix(type)}/${key}.${suffix}`
+}
+
+export const transform = async (fileName, result) => {
   if (!result) {
     return result
   }
@@ -15,13 +21,7 @@ export const transform = async (fileName, result, extras) => {
   const confidence = await getConfig('confidence', 99)
   const words = (await Promise.all(result.Blocks
     .filter(t => t.BlockType === 'WORD')
-    .map(async t => {
-      const correction = await wordUpdate(fileName, t.Id)
-      if (correction) {
-        console.log(correction, fileName, t)
-        t.Text = correction
-        t.Confidence = 100
-      }
+    .map(t => {
       if (t.Confidence < confidence) {
         flags.push(t)
       }
@@ -32,12 +32,6 @@ export const transform = async (fileName, result, extras) => {
       res[word.Id] = word
       return res
     }, {})
-
-  if (flags.length > 0) {
-    // this is async, we are not waiting for it
-    flagForReview(fileName, flags, extras)
-    // todo: cancel operation when there is any flag
-  }
 
   const lines = result.Blocks
     .filter(t => t.BlockType === 'LINE')
@@ -60,23 +54,84 @@ export const transform = async (fileName, result, extras) => {
       }
     })
 
-  return { lines, pages, words, flagged: flags }
+  return {
+    pages,
+    wordsCount: Object.keys(words).length,
+    linesCount: Object.keys(lines).length,
+    flagged: flags
+  }
 }
 
-export const detectDocumentText = async (fileName, fileContent, useCached, extras) => {
-  if (useCached) {
-    const storedResult = await resultStore.find({ fileName })
-      .then(([result]) => result ? JSON.parse(result.result) : null)
-      .then(result => {
-        return transform(fileName, result, extras)
-      })
+export async function uploadS3 (key, data) {
+  const credentials = await getCredential()
+  const s3 = new S3(credentials)
+  const bucketName = await getConfig('bucket_name')
 
-    if (storedResult) {
-      console.log(`Cached result found for ${fileName}`, storedResult)
-      return storedResult
-    }
+  const uploadCommand = {
+    Body: data,
+    Bucket: bucketName,
+    Key: key
   }
 
+  return s3.putObject(uploadCommand)
+}
+
+export async function getObject (key) {
+  const credentials = await getCredential()
+  const s3 = new S3(credentials)
+  const bucketName = await getConfig('bucket_name')
+
+  const request = {
+    Bucket: bucketName,
+    Key: key
+  }
+
+  const data = await s3.send(new GetObjectCommand(request))
+  return data.Body
+}
+
+export async function getFromS3 (key) {
+  const credentials = await getCredential()
+  const s3 = new S3(credentials)
+  const bucketName = await getConfig('bucket_name')
+
+  const request = {
+    Bucket: bucketName,
+    Key: key
+  }
+
+  return s3.getObject(request)
+    .then(res => {
+      return res.Body.read()
+    })
+}
+
+export const queryS3 = async (key, query) => {
+  const credentials = await getCredential()
+  const s3 = new S3(credentials)
+  const bucketName = await getConfig('bucket_name')
+
+  const command = { Bucket: bucketName,
+    Key: key,
+    ExpressionType: 'SQL',
+    InputSerialization: { JSON: { Type: 'DOCUMENT' } },
+    OutputSerialization: { JSON: { RecordDelimiter: '\n' } },
+    Expression: query }
+
+  return s3.selectObjectContent(command)
+    .then(async res => {
+      let out = ''
+      for await (const x of res.Payload) {
+        if (x.Records) {
+          const str = new TextDecoder().decode(x.Records.Payload)
+          out += str
+        }
+      }
+      return JSON.parse(out)
+    })
+}
+
+export const detectDocumentText = async (fileName, fileContent) => {
   const textract = await getCredential().then(config => new Textract(config))
 
   const command = {
@@ -89,8 +144,7 @@ export const detectDocumentText = async (fileName, fileContent, useCached, extra
     .then(command => textract.detectDocumentText(command))
     .then(result => {
       console.log(`Processing ${fileName} succeeded`, result)
-      resultStore.update({ fileName }, { fileName, result: JSON.stringify(result) }, { upsert: true })
-      return transform(fileName, result, extras)
+      return transform(fileName, result)
     })
     .catch(err => {
       console.log(`Processing ${fileName} failed`, err)
@@ -99,20 +153,7 @@ export const detectDocumentText = async (fileName, fileContent, useCached, extra
     })
 }
 
-export const startDocumentTextDetection = async (fileName, fileContent, type, useCached, extras) => {
-  if (useCached) {
-    const storedResult = await resultStore.find({ fileName })
-      .then(([result]) => result ? JSON.parse(result.result) : null)
-      .then(result => {
-        return transform(fileName, result, extras)
-      })
-
-    if (storedResult) {
-      console.log(`Cached result found for ${fileName}`, storedResult)
-      return storedResult
-    }
-  }
-
+export const startDocumentTextDetection = async (fileName, fileContent, type) => {
   const [textract, s3] = await getCredential().then(config => [new Textract(config), new S3(config)])
 
   const fileId = crypto.randomBytes(16).toString('hex')
@@ -181,8 +222,7 @@ export const startDocumentTextDetection = async (fileName, fileContent, type, us
     })
     .then(result => {
       console.log(`Processing ${fileName} succeeded`, result)
-      resultStore.update({ fileName }, { fileName, result: JSON.stringify(result) }, { upsert: true })
-      return transform(fileName, result, extras)
+      return transform(fileName, result)
     })
     .catch(err => {
       console.log(`Processing ${fileName} failed`, err)

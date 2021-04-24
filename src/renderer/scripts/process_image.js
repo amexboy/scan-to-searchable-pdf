@@ -1,6 +1,5 @@
 import fs from 'fs'
 import im from 'image-size'
-import { detectDocumentText } from '@/scripts/aws'
 import PDFDocument from 'pdfkit'
 
 const getImageSize = path => {
@@ -18,18 +17,17 @@ const getImageSize = path => {
     })
 }
 
-export const processImage = async (filePath, fileContent, output, useCached, extras) => {
-  const result = await detectDocumentText(filePath, fileContent, useCached, { type: 'image', output, ...extras })
+export const processImage = async (filePath, output, result) => {
+  console.log('Using result', result)
 
   const doc = new PDFDocument({ autoFirstPage: false })
 
   const imageSize = await getImageSize(filePath)
-  console.log(imageSize)
 
   doc.pipe(fs.createWriteStream(output))
   doc.addPage({ margin: 0, size: [imageSize.width, imageSize.height] })
 
-  Object.values(result.words)
+  Object.values(result.pages[0].words)
     .forEach(t => {
       doc
         .rect(
