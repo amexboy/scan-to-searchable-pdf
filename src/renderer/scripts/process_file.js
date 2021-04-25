@@ -28,7 +28,7 @@ async function getTextratResut (inputPath, fileContent, output, type, useCached)
   if (result) {
     console.log(`Cached result found for ${inputPath}`)
   } else if (type === '.pdf') {
-    result = await startDocumentTextDetection(inputPath, fileContent, '.pdf')
+    result = await startDocumentTextDetection(inputPath, fileContent, type)
       .then(result => {
         if (result.wordsCount === 0) {
           console.log(`${inputPath} returned empty result, rendering and re-uploading`)
@@ -39,7 +39,7 @@ async function getTextratResut (inputPath, fileContent, output, type, useCached)
 
           return renderPdf(inputPath, renderedFile)
             .then(_ => fs.promises.readFile(renderedFile))
-            .then(content => startDocumentTextDetection(renderedFile, content, '.pdf'))
+            .then(content => startDocumentTextDetection(renderedFile, content, type))
         }
 
         return result
@@ -65,11 +65,17 @@ export const processFile = async (inputPath, type, output, useCached, extras) =>
       })
 
     throw new Error('Some words were flagged')
-  } else {
-    if (type === '.pdf') {
-      return processPdf(fileContent, output, result)
-    }
-
-    return processImage(inputPath, output, result)
   }
+
+  return generateResult(inputPath, fileContent, type, output, result)
+}
+
+export async function generateResult (inputPath, fileContent, type, output, result) {
+  fileContent = fileContent || await fs.promises.readFile(inputPath)
+
+  if (type === '.pdf') {
+    return processPdf(fileContent, output, result)
+  }
+
+  return processImage(inputPath, output, result)
 }

@@ -1,6 +1,6 @@
 import crypto from 'crypto'
 import { Textract } from '@aws-sdk/client-textract'
-import { GetObjectCommand, S3 } from '@aws-sdk/client-s3'
+import { DeleteObjectsCommand, GetObjectCommand, S3 } from '@aws-sdk/client-s3'
 import { getConfig, getCredential } from '@/scripts/db'
 const checkInterval = 3000
 
@@ -88,6 +88,23 @@ export async function getObject (key) {
 
   const data = await s3.send(new GetObjectCommand(request))
   return data.Body
+}
+
+export async function deleteObjects (keys) {
+  const credentials = await getCredential()
+  const s3 = new S3(credentials)
+  const bucketName = await getConfig('bucket_name')
+
+  const request = {
+    Bucket: bucketName,
+    Delete: {
+      Objects: keys.map(key => ({ Key: key }))
+    }
+  }
+
+  console.log('Deleting objects with keys', request)
+
+  return s3.deleteObjects(request)
 }
 
 export async function getFromS3 (key) {

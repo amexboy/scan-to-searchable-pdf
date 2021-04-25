@@ -47,8 +47,8 @@
 
               <v-list-item>
                 <v-list-item-content>
-                  <v-list-item-subtitle v-text="'Input'" />
-                  <v-list-item-title v-text="item.input" />
+                  <v-list-item-subtitle v-text="'Output'" />
+                  <v-list-item-title v-text="item.extras.output" />
                 </v-list-item-content>
               </v-list-item>
 

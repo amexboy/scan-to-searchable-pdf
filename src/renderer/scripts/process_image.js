@@ -29,6 +29,9 @@ export const processImage = async (filePath, output, result) => {
 
   Object.values(result.pages[0].words)
     .forEach(t => {
+      if (t.Confidence > 100) {
+        console.log('Approved word', t)
+      }
       doc
         .rect(
           t.Geometry.BoundingBox.Left * imageSize.width,

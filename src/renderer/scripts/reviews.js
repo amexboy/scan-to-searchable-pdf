@@ -2,9 +2,9 @@
 import fs from 'fs'
 import { dirname, resolve } from 'path'
 import { S3 } from '@aws-sdk/client-s3'
-import { uploadS3, getFromS3, queryS3, getMetadataPrefix, getMetadataKey, getObject } from './aws'
+import { generateResult } from '@/scripts/process_file'
+import { uploadS3, getFromS3, queryS3, getMetadataPrefix, getMetadataKey, getObject, deleteObjects } from './aws'
 import { dbFactory, getConfig, getOrSetConfig, getCredential } from './db'
-// import { processFile } from '@/scripts/process_file'
 const { app, remote } = require('electron')
 
 const flagStore = dbFactory('flags.db')
@@ -89,15 +89,26 @@ export const getStoredResult = async filePath => {
   return null
 }
 
-export const getFlaggedWords = async filePath => {
+export async function getCorrections (filePath) {
   const correctionsKey = getMetadataKey('corrections', filePath)
   const corrections = 'SELECT * FROM s3object s'
   const correctionsRes = await queryS3(correctionsKey, corrections).catch(_ => ({ corrections: [] }))
-  console.log(correctionsRes)
+  console.log('Corrections for file', correctionsRes)
 
+  return correctionsRes.corrections
+}
+
+function getCacheFile (filePath) {
   const resultKey = getMetadataKey('result', filePath, 'pdf')
   const rootPath = process.env.NODE_ENV === 'development' ? '.' : (app || remote.app).getPath('home')
-  const cacheFile = resolve(`${rootPath}/results/${resultKey}`)
+  return resolve(`${rootPath}/results/${resultKey}`)
+}
+
+export const getFlaggedWords = async filePath => {
+  const corrections = await getCorrections(filePath)
+
+  const resultKey = getMetadataKey('result', filePath, 'pdf')
+  const cacheFile = getCacheFile(filePath)
 
   await fs.promises.mkdir(dirname(cacheFile), { recursive: true }).catch(_ => false)
   const cached = await fs.promises.access(cacheFile).then(_ => true).catch(_ => false)
@@ -115,33 +126,32 @@ export const getFlaggedWords = async filePath => {
   const stored = await flagStore.find({ fileKey })
   console.log(stored)
   if (stored.length > 0) {
-    return { words: stored[0].words, corrections: correctionsRes.corrections, cacheFile }
+    return { words: stored[0].words, corrections, cacheFile }
   }
 
   const query = 'SELECT s.words FROM s3object s'
   const res = await queryS3(fileKey, query)
   flagStore.update({ fileKey }, { fileKey, words: res.words }, { upsert: true })
 
-  return { words: res.words, corrections: correctionsRes.corrections, cacheFile }
+  return { words: res.words, corrections, cacheFile }
 }
 
-export const approveWords = async (filePath, pending) => {
-  console.log(pending)
+export async function approveWords (filePath, pending) {
+  const corrections = await getCorrections(filePath)
+  const listToApprove = [
+    ...corrections,
+    ...pending.map(w =>
+      ({ wordId: w.word.Id, newWord: w.newWord }))
+  ]
+  console.log('Approving/Correcting list', listToApprove)
 
   // uploading to s3
   const fileKey = getMetadataKey('corrections', filePath)
   const data = {
-    corrections: pending.map(w =>
-      ({ wordId: w.word.Id, newWord: w.newWord })),
+    corrections: listToApprove,
     path: filePath,
     count: pending.length
   }
-
-  // if (res.length === 0) {
-  //   console.log('Regenerating file')
-  //   const fileToProcess = word.extras.originalPath || filePath
-  //   return processFile(fileToProcess, word.extras.type, word.extras.output, true)
-  // }
   const uploadResult = await uploadS3(fileKey, JSON.stringify(data))
   console.log('Corrections uploaded succesfully', uploadResult)
 
@@ -220,4 +230,45 @@ export const lock = async (file, force = false) => {
     .catch(_ => false)
 
   return lockStatus ? { success: true } : { success: false }
+}
+
+export async function finalizeFile (filePath, extras) {
+  const corrections = (await getCorrections(filePath)).map(c => [c.wordId, c.newWord])
+  const lookup = Object.fromEntries(corrections)
+  console.log('Corrections lookup ', lookup, extras)
+
+  const result = await getStoredResult(filePath)
+
+  const updatePages = result.pages.map(p => {
+    p.words = p.words.map(w => {
+      const newWord = lookup[w.Id]
+      if (newWord) {
+        w.Text = newWord
+        w.Confidence = 101
+      }
+      return w
+    })
+
+    return p
+  })
+
+  return generateResult(filePath, null, extras.type, extras.output, { pages: updatePages }, lookup)
+    .then(_ => {
+      cleanUpFiles(filePath)
+      return _
+    })
+}
+
+async function cleanUpFiles (filePath) {
+  const cacheFile = getCacheFile(filePath)
+  const resultKey = getMetadataKey('result', filePath, 'pdf')
+  const flagsKey = getMetadataKey('flags', filePath)
+  const lockKey = getMetadataKey('lock', filePath)
+  const correctionsKey = getMetadataKey('corrections', filePath)
+
+  Promise.all([
+    fs.promises.unlink(cacheFile),
+    deleteObjects([resultKey, flagsKey, lockKey, correctionsKey])
+  ]
+  )
 }

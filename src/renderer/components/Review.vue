@@ -12,8 +12,13 @@
           <v-icon v-text="'mdi-reload'" />
         </v-btn> -->
         <v-spacer />
-        <v-btn text small color="green" :disabled="!editable" @click="approveAllDialog">
+        <v-btn v-if="!done" text small color="green" :disabled="!editable" @click="approveAllDialog">
           <v-icon v-text="'mdi-check-all'" /> &nbsp; Bulk Approve
+        </v-btn>
+        <v-btn v-if="done && pending.length === 0"
+               small text :loading="saving" @click="finalize"
+        >
+          <v-icon v-text="'mdi-check-all'" /> &nbsp; Finalize
         </v-btn>
         <v-btn v-if="ready && editable && !hasLock" text small color="red"
                @click="forceLock"
@@ -31,12 +36,31 @@
         </v-btn-toggle>
       </v-row>
     </v-toolbar>
-    <v-card-text>
-      <!-- <v-row>
-        <v-breadcrumbs :items="parents" divider="\" />
-      </v-row> -->
-
-      <v-row v-if="ready && words.length > 0" style="max-height: 500px; overflow-y: scroll">
+    <v-card-text v-if="!ready ">
+      Please wait while the necessary data is loaded
+    </v-card-text>
+    <v-card-text v-else-if="done && pending.length > 0">
+      <v-row justify="center">
+        {{ pending.length }} flagged words waiting saved. Save?
+      </v-row>
+      <v-row justify="center">
+        <v-btn small text @click="save"><v-icon v-text="'mdi-content-save'" /> &nbsp; Save </v-btn>
+      </v-row>
+    </v-card-text>
+    <v-card-text v-else-if="done && pending.length === 0">
+      <v-row justify="center">
+        You have reviewed all flagged words. Proceed to re-generate the file?
+      </v-row>
+      <v-row justify="center">
+        <v-btn small text :loading="saving"
+               @click="finalize"
+        >
+          <v-icon v-text="'mdi-check-all'" /> &nbsp; Finalize
+        </v-btn>
+      </v-row>
+    </v-card-text>
+    <v-card-text v-else-if="ready && words.length > 0">
+      <v-row style="max-height: 500px; overflow-y: scroll">
         <v-col v-for="word in words" :key="word.Id" cols="12" :sm="view">
           <v-card>
             <pdf-vue :editable="editable" :word="word" :path="file.path" :cache-file="cacheFile" @save="saveWord" />
@@ -45,22 +69,13 @@
 
         <v-col>
           <infinite-loading @infinite="scroll" />
-          <template v-if="done">
-            <v-row justify="center">
-              You have reviewed all flagged words. Save?
-            </v-row>
-            <v-row justify="center">
-              <v-btn small text><v-icon v-text="'mdi-content-save'" /> &nbsp; Save </v-btn>
-              <v-btn small text><v-icon v-text="'mdi-reload'" /> &nbsp; Reset </v-btn>
-            </v-row>
-          </template>
         </v-col>
       </v-row>
     </v-card-text>
   </v-card>
 </template>
 <script>
-import { lock, approveWords, getFlaggedWords, unlock } from '@/scripts/reviews'
+import { lock, approveWords, getFlaggedWords, unlock, finalizeFile } from '@/scripts/reviews'
 import EditWord from '@/components/EditWord.vue'
 import ApproveConfidence from '@/components/ApproveConfidence.vue'
 import { splitPath } from '@/scripts/utils'
@@ -129,8 +144,9 @@ export default {
     const init = this.editable ? this.aqquireLock(false) : Promise.resolve(false)
     init.then(async () => {
       const res = await getFlaggedWords(this.file.path, 0)
+      console.log('Flagged words and corrections for file ', this.file.path, res)
       this.originalWords = res.words
-      this.correctons = res.correctons
+      this.corrections = res.corrections
       this.cacheFile = res.cacheFile
       this.ready = true
     })
@@ -204,16 +220,22 @@ export default {
         .finally(_ => {
           this.saving = false
         })
+    },
+    finalize () {
+      this.saving = true
+      finalizeFile(this.file.path, this.file.extras)
         .then(_ => {
-          if (this.words.length === 0) {
-            this.close()
-          }
+          this.close()
+          this.$dialog.notify.success('Changes were succesfully saved')
+        })
+        .finally(_ => {
+          this.saving = false
         })
     },
     scroll ($state) {
       console.log('scroll')
       this.max += 5
-      if (this.words.length === this.originalWords.length) {
+      if (this.max >= this.originalWords.length) {
         $state.complete()
       } else {
         $state.loaded()
