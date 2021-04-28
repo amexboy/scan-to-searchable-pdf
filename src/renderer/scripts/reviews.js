@@ -3,7 +3,7 @@ import fs from 'fs'
 import { dirname, resolve } from 'path'
 import { S3 } from '@aws-sdk/client-s3'
 import { generateResult } from '@/scripts/process_file'
-import { uploadS3, getJsonFromS3, queryS3, getMetadataPrefix, getMetadataKey, getObject, deleteObjects } from './aws'
+import { uploadS3, getJsonFromS3, queryS3, getMetadataPrefix, getMetadataKey, deleteObjects } from './aws'
 import { dbFactory, getConfig, getOrSetConfig, getCredential } from './db'
 const { app, remote } = require('electron')
 
@@ -71,7 +71,7 @@ export const getStoredResult = async filePath => {
   const stored = await resultStore.find({ fileKey })
   console.log(stored)
   if (stored.length > 0) {
-    return stored[0].pages
+    return stored[0]
   }
 
   const pages = await getJsonFromS3(fileKey).catch(_ => null) //, credentials, bucketName)

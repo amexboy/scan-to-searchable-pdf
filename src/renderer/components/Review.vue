@@ -5,8 +5,11 @@
         <v-btn text small color="red" @click="close">
           <v-icon v-text="'mdi-close'" />
         </v-btn>
-        <v-btn v-if="!autosave" text small :disabled="pending.length == 0" @click="save">
+        <v-btn text small :disabled="pending.length == 0" @click="save">
           <v-icon color="primary" v-text="'mdi-content-save'" />
+        </v-btn>
+        <v-btn text small :disabled="pending.length == 0" @click="undo">
+          <v-icon color="primary" v-text="'mdi-undo'" />
         </v-btn>
         <!-- <v-btn text small>
           <v-icon v-text="'mdi-reload'" />
@@ -116,6 +119,7 @@ export default {
   },
   computed: {
     words () {
+      console.log('Hiding', this.hideWordIds)
       return this.originalWords
         .filter(w => !w.removed)
         .filter(w => !this.hideWordIds.includes(w.Id))
@@ -202,7 +206,14 @@ export default {
       }
       console.log(data)
       this.pending.push(data)
-      this.removeFromWords(data.word)
+      // this.removeFromWords(data.word)
+    },
+    undo () {
+      if (this.pending.length === 0) {
+        return
+      }
+      this.pending.pop()
+      // this.undoQueue.push()
     },
     removeFromWords (word) {
       const index = this.originalWords.indexOf(word)

@@ -1,6 +1,6 @@
 import crypto from 'crypto'
 import { Textract } from '@aws-sdk/client-textract'
-import { DeleteObjectsCommand, GetObjectCommand, S3 } from '@aws-sdk/client-s3'
+import { GetObjectCommand, S3 } from '@aws-sdk/client-s3'
 import { getConfig, getCredential } from '@/scripts/db'
 const checkInterval = 3000
 

@@ -51,6 +51,7 @@ export default app => {
                 text: 'Processed file ' + filePath + '\noriginal=' + moveTo + '\nresultTo = ' + resultTo })
           })
           .catch(err => {
+            console.log('Processed file failed ' + filePath + '\nerror=', err)
             app.context.$dialog.notify.error('Processing file ' + filePath + ' failed!\nerror=' + err)
             app.context.store.commit('log',
               { path: filePath.info, text: 'Processed file failed ' + filePath + '\nerror=' + err })
