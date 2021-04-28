@@ -52,6 +52,13 @@
                 </v-list-item-content>
               </v-list-item>
 
+              <v-list-item v-if="item.extras.originalPath">
+                <v-list-item-content>
+                  <v-list-item-subtitle v-text="'Original Path'" />
+                  <v-list-item-title v-text="item.extras.originalPath" />
+                </v-list-item-content>
+              </v-list-item>
+
               <v-list-item>
                 <!-- <v-btn small text color="green" @click="approveAllDialog(item.words)"> -->
                 <!-- <v-icon v-text="'mdi-check'" />&nbsp; Bulk Approve -->

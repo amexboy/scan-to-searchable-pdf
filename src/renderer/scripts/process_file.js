@@ -53,7 +53,7 @@ async function getTextratResut (inputPath, fileContent, output, type, useCached)
 
 export const processFile = async (inputPath, output, useCached, extras) => {
   const type = extname(inputPath)
-  console.log(`Processing file ${inputPath} `)
+  console.log(`Processing file ${inputPath} `, output, useCached, extras)
 
   const fileContent = await fs.promises.readFile(inputPath)
   const result = await getTextratResut(inputPath, fileContent, output, type, useCached)
@@ -72,6 +72,7 @@ export const processFile = async (inputPath, output, useCached, extras) => {
 }
 
 export async function generateResult (inputPath, fileContent, output, result) {
+  console.log('Generationg result for ', inputPath)
   const type = extname(inputPath)
   fileContent = fileContent || await fs.promises.readFile(inputPath)
 

@@ -125,7 +125,6 @@ export default {
   },
   computed: {
     words () {
-      console.log('Hiding', this.hideWordIds)
       return this.originalWords
         .filter(w => !w.removed)
         .filter(w => !this.hideWordIds.includes(w.Id))
@@ -151,17 +150,20 @@ export default {
     }
   },
   mounted () {
-    const init = this.editable ? this.aqquireLock(false) : Promise.resolve(false)
-    init.then(async () => {
-      const res = await getFlaggedWords(this.file.path, 0)
-      console.log('Flagged words and corrections for file ', this.file.path, res)
-      this.originalWords = res.words
-      this.corrections = res.corrections
-      this.cacheFile = res.cacheFile
-      this.ready = true
-    })
+    this.init()
   },
   methods: {
+    init () {
+      const init = this.editable ? this.aqquireLock(false) : Promise.resolve(false)
+      init.then(async () => {
+        const res = await getFlaggedWords(this.file.path, 0)
+        console.log('Flagged words and corrections for file ', this.file.path, res)
+        this.originalWords = res.words
+        this.corrections = res.corrections
+        this.cacheFile = res.cacheFile
+        this.ready = true
+      })
+    },
     toggleSort () {
       this.asc = !this.asc
 
@@ -205,7 +207,7 @@ export default {
           return close
         })
         .then(close => {
-          console.log('Released lock')
+          console.log('Released lock', close)
           if (close) {
             this.$emit('submit', { cancel: true })
             this.isActive = false
@@ -240,6 +242,7 @@ export default {
           this.$dialog.notify.success('Changes were succesfully saved')
           this.pending = []
         })
+        .then(this.init)
         .finally(_ => {
           this.saving = false
         })

@@ -42,8 +42,8 @@ export default app => {
         await fs.promises.mkdir(path.dirname(moveTo)).catch(_ => {})
         await fs.promises.mkdir(path.dirname(resultTo)).catch(_ => {})
 
-        queueFile(filePath, path.extname(filePath), resultTo, false, { originalPath: moveTo })
-          .then(() => fs.promises.rename(filePath, moveTo))
+        queueFile(filePath, resultTo, false, { originalPath: moveTo })
+          .finally(() => fs.promises.rename(filePath, moveTo))
           .then(_ => {
             app.context.$dialog.notify.success('Processed file ' + filePath)
             app.context.store.commit('log',

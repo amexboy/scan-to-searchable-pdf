@@ -68,10 +68,11 @@ export const getStoredResult = async filePath => {
   const fileKey = SAVED_RESULT_KEY(filePath)
   console.log('Stored result fileKey', fileKey)
 
-  const stored = await resultStore.find({ fileKey })
-  console.log(stored)
-  if (stored.length > 0) {
-    return stored[0]
+  const storedPages = await resultStore.find({ fileKey })
+  const storedFlags = await getFlags(filePath)
+
+  if (storedPages.length > 0) {
+    return { pages: storedPages[0].pages, flagged: storedFlags }
   }
 
   const pages = await getJsonFromS3(fileKey).catch(_ => null) //, credentials, bucketName)
@@ -90,7 +91,6 @@ export async function getCorrections (filePath) {
   const correctionsKey = CORRECTIONS_KEY(filePath)
 
   const corrections = await getJsonFromS3(correctionsKey).catch(_ => [])
-  console.log('Corrections for file', corrections)
 
   return corrections
 }
@@ -99,7 +99,7 @@ export async function getFlags (filePath) {
   const fileKey = FLAGS_KEY(filePath)
 
   const stored = await flagStore.find({ fileKey })
-  console.log(stored)
+  console.log('Cached flags', stored)
   if (stored.length > 0) {
     return stored[0].flags
   }
@@ -224,6 +224,7 @@ export const lock = async (file, force = false) => {
 }
 
 export async function finalizeFile (filePath, extras) {
+  console.log('Finalizing review for ', filePath, extras)
   const corrections = (await getCorrections(filePath)).map(c => [c.wordId, c.newWord])
   const lookup = Object.fromEntries(corrections)
   console.log('Corrections lookup ', lookup, extras)
@@ -243,7 +244,7 @@ export async function finalizeFile (filePath, extras) {
     return p
   })
 
-  return generateResult(filePath, null, extras.output, { pages: updatePages })
+  return generateResult(extras.originalPath || filePath, null, extras.output, { pages: updatePages })
     .then(_ => {
       cleanUpFiles(filePath)
       return _
