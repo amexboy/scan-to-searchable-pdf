@@ -82,7 +82,7 @@ export default {
       loading: true,
       flagged: [],
       headers: [{ text: 'File Name', value: 'name' },
-        { text: 'Flagged Words', value: 'wordsCount' },
+        { text: 'Flagged Words', value: 'flagsCount' },
         { text: 'Actions', value: 'actions', sortable: false }
         // { text: 'Path', value: 'path' },
         // { text: 'Input', value: 'input' },

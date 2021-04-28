@@ -72,7 +72,7 @@ export default {
     },
     convert () {
       this.processing = true
-      queueFile(this.path, path.extname(this.path), this.output)
+      queueFile(this.path, this.output)
         .then(res => {
           this.processing = false
           console.log(res)

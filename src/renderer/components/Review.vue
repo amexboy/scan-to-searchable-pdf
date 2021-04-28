@@ -183,10 +183,10 @@ export default {
           return true
         })
         .then(async close => {
-          if (close) {
+          if (close && this.hasLock) {
             return unlock(this.file.path).then(_ => true)
           }
-          return false
+          return close
         })
         .then(close => {
           console.log('Released lock')

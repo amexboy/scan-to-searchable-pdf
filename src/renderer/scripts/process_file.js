@@ -1,6 +1,6 @@
 
 import fs from 'fs'
-import { dirname, basename, resolve } from 'path'
+import { extname, dirname, basename, resolve } from 'path'
 import { processImage } from '@/scripts/process_image'
 import { processPdf } from '@/scripts/process_pdf'
 import renderPdf from '@/scripts/print'
@@ -8,10 +8,10 @@ import { flagForReview, getStoredResult } from './reviews'
 import { startDocumentTextDetection, detectDocumentText } from './aws'
 
 let lastProcess = Promise.resolve()
-export const queueFile = (path, type, output, useCached, extras) => {
+export const queueFile = (path, output, useCached, extras) => {
   const func = () => {
     console.log('Starting processing for ' + path)
-    return processFile(path, type, output, useCached, extras)
+    return processFile(path, output, useCached, extras)
   }
 
   lastProcess = lastProcess.then(func, func)
@@ -51,8 +51,9 @@ async function getTextratResut (inputPath, fileContent, output, type, useCached)
   return result
 }
 
-export const processFile = async (inputPath, type, output, useCached, extras) => {
-  console.log(`Processing file ${inputPath} with type ${type}`)
+export const processFile = async (inputPath, output, useCached, extras) => {
+  const type = extname(inputPath)
+  console.log(`Processing file ${inputPath} `)
 
   const fileContent = await fs.promises.readFile(inputPath)
   const result = await getTextratResut(inputPath, fileContent, output, type, useCached)
@@ -67,10 +68,11 @@ export const processFile = async (inputPath, type, output, useCached, extras) =>
     throw new Error('Some words were flagged')
   }
 
-  return generateResult(inputPath, fileContent, type, output, result)
+  return generateResult(inputPath, fileContent, output, result)
 }
 
-export async function generateResult (inputPath, fileContent, type, output, result) {
+export async function generateResult (inputPath, fileContent, output, result) {
+  const type = extname(inputPath)
   fileContent = fileContent || await fs.promises.readFile(inputPath)
 
   if (type === '.pdf') {

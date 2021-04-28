@@ -21,11 +21,13 @@ export const transform = async (fileName, result) => {
   const confidence = await getConfig('confidence', 99)
   const words = (await Promise.all(result.Blocks
     .filter(t => t.BlockType === 'WORD')
-    .map(t => {
-      if (t.Confidence < confidence) {
-        flags.push(t)
+    .map(({ Id, Text, Confidence, Page, Geometry }) => {
+      const word = { Id, Text, Confidence, Page, Geometry }
+
+      if (word.Confidence < confidence) {
+        flags.push(word)
       }
-      return t
+      return word
     })
   ))
     .reduce((res, word) => {
@@ -35,6 +37,8 @@ export const transform = async (fileName, result) => {
 
   const lines = result.Blocks
     .filter(t => t.BlockType === 'LINE')
+    .map(({ Id, Text, Confidence, Page, Geometry, Relationships }) =>
+      ({ Id, Text, Confidence, Page, Geometry, Relationships }))
     .reduce((res, line) => {
       const lineWords = line.Relationships ? line.Relationships.map(r => r.Ids).flat().map(id => words[id]) : []
       res[line.Id] = { line, words: lineWords }
@@ -98,7 +102,8 @@ export async function deleteObjects (keys) {
   const request = {
     Bucket: bucketName,
     Delete: {
-      Objects: keys.map(key => ({ Key: key }))
+      Objects: keys.map(key => ({ Key: key })),
+      Quiet: true
     }
   }
 
@@ -107,7 +112,15 @@ export async function deleteObjects (keys) {
   return s3.deleteObjects(request)
 }
 
-export async function getFromS3 (key) {
+const streamToString = stream =>
+  new Promise((resolve, reject) => {
+    const chunks = []
+    stream.on('data', chunk => chunks.push(chunk))
+    stream.on('error', reject)
+    stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
+  })
+
+export async function getJsonFromS3 (key) {
   const credentials = await getCredential()
   const s3 = new S3(credentials)
   const bucketName = await getConfig('bucket_name')
@@ -119,7 +132,10 @@ export async function getFromS3 (key) {
 
   return s3.getObject(request)
     .then(res => {
-      return res.Body.read()
+      return streamToString(res.Body)
+    })
+    .then(body => {
+      return JSON.parse(body.toString('utf-8'))
     })
 }
 

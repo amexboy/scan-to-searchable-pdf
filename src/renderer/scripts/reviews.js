@@ -3,50 +3,50 @@ import fs from 'fs'
 import { dirname, resolve } from 'path'
 import { S3 } from '@aws-sdk/client-s3'
 import { generateResult } from '@/scripts/process_file'
-import { uploadS3, getFromS3, queryS3, getMetadataPrefix, getMetadataKey, getObject, deleteObjects } from './aws'
+import { uploadS3, getJsonFromS3, queryS3, getMetadataPrefix, getMetadataKey, getObject, deleteObjects } from './aws'
 import { dbFactory, getConfig, getOrSetConfig, getCredential } from './db'
 const { app, remote } = require('electron')
 
 const flagStore = dbFactory('flags.db')
 const resultStore = dbFactory('results.db')
 
-export const flagForReview = async (filePath, words, pages, extras) => {
-  const fileKey = getMetadataKey('flags', filePath)
-  const data = {
-    extras,
-    pages,
-    words: words.map(({ Id, Text, Confidence, Page, Geometry }) =>
-      ({ Id, Text, Confidence, Page, Geometry })),
-    path: filePath,
-    wordsCount: words.length
-  }
+const FLAGS_KEY = filePath => getMetadataKey('flags/words', filePath)
+const FLAGGED_SUMMARY_KEY = filePath => getMetadataKey('flags/summary', filePath)
+const CORRECTIONS_KEY = filePath => getMetadataKey('flags/corrections', filePath)
+const FLAGGED_SUMMARY_PREFIX = getMetadataPrefix('flags/summary')
+const SAVED_RESULT_KEY = filePath => getMetadataKey('flags/results', filePath)
 
-  const readInput = fs.createReadStream(extras.output)
+export const flagForReview = async (filePath, flags, pages, extras) => {
+  const flaggsKey = FLAGS_KEY(filePath)
+  const summaryKey = FLAGGED_SUMMARY_KEY(filePath)
+  const pagesKey = SAVED_RESULT_KEY(filePath)
+
   const uploadResult = await Promise.all([
-    uploadS3(getMetadataKey('result', filePath, 'pdf'), readInput),
-    uploadS3(fileKey, JSON.stringify(data))
-  ])
-  // .then(async _ => {
-  //   await fs.promises.rm(extras.output)
-  //   return _
-  // })
 
-  // todo: Delete output file
+    uploadS3(summaryKey, JSON.stringify({
+      extras,
+      path: filePath,
+      flagsCount: flags.length
+    })),
+
+    uploadS3(flaggsKey, JSON.stringify(flags)),
+
+    uploadS3(pagesKey, JSON.stringify(pages))
+  ])
+
   console.log('Flags uploaded succesfully', uploadResult)
 
   return uploadResult
 }
 
 export const getFlagedFiles = async () => {
-  const prefix = getMetadataPrefix('flags')
-
   const credentials = await getCredential()
   const s3 = new S3(credentials)
   const bucketName = await getConfig('bucket_name')
 
   const request = {
     Bucket: bucketName,
-    Prefix: prefix
+    Prefix: FLAGGED_SUMMARY_PREFIX
   }
 
   const files = await s3.listObjects(request)
@@ -57,7 +57,7 @@ export const getFlagedFiles = async () => {
     })
 
   console.log('Flagged objects', files, s3)
-  const query = 'SELECT s.path, s.extras, s.wordsCount FROM s3object s LIMIT 1'
+  const query = 'SELECT s.path, s.extras, s.flagsCount FROM s3object[*] s LIMIT 1'
 
   return Promise.all(
     files.map(f => f.Key)
@@ -65,37 +65,50 @@ export const getFlagedFiles = async () => {
 }
 
 export const getStoredResult = async filePath => {
-  const fileKey = getMetadataKey('flags', filePath)
+  const fileKey = SAVED_RESULT_KEY(filePath)
   console.log('Stored result fileKey', fileKey)
 
   const stored = await resultStore.find({ fileKey })
   console.log(stored)
   if (stored.length > 0) {
-    return stored[0]
+    return stored[0].pages
   }
 
-  const query = 'SELECT s.pages FROM s3object s'
-  const res = await queryS3(fileKey, query)
-    .catch(_ => {
-      console.log('Failed to run query')
-      return null
-    })
+  const pages = await getJsonFromS3(fileKey).catch(_ => null) //, credentials, bucketName)
 
-  if (res) {
-    resultStore.update({ fileKey }, { fileKey, pages: res.pages }, { upsert: true })
+  console.log('Found pages', pages)
 
-    return { pages: res.pages }
+  if (pages) {
+    resultStore.update({ fileKey }, { fileKey, pages }, { upsert: true })
+
+    return { pages }
   }
   return null
 }
 
 export async function getCorrections (filePath) {
-  const correctionsKey = getMetadataKey('corrections', filePath)
-  const corrections = 'SELECT * FROM s3object s'
-  const correctionsRes = await queryS3(correctionsKey, corrections).catch(_ => ({ corrections: [] }))
-  console.log('Corrections for file', correctionsRes)
+  const correctionsKey = CORRECTIONS_KEY(filePath)
 
-  return correctionsRes.corrections
+  const corrections = await getJsonFromS3(correctionsKey).catch(_ => [])
+  console.log('Corrections for file', corrections)
+
+  return corrections
+}
+
+export async function getFlags (filePath) {
+  const fileKey = FLAGS_KEY(filePath)
+
+  const stored = await flagStore.find({ fileKey })
+  console.log(stored)
+  if (stored.length > 0) {
+    return stored[0].flags
+  }
+
+  const result = await getJsonFromS3(fileKey).catch(_ => [])
+  console.log('Flags for file', result)
+
+  flagStore.update({ fileKey }, { fileKey, flags: result }, { upsert: true })
+  return result
 }
 
 function getCacheFile (filePath) {
@@ -106,34 +119,23 @@ function getCacheFile (filePath) {
 
 export const getFlaggedWords = async filePath => {
   const corrections = await getCorrections(filePath)
+  const result = await getStoredResult(filePath)
 
-  const resultKey = getMetadataKey('result', filePath, 'pdf')
   const cacheFile = getCacheFile(filePath)
 
   await fs.promises.mkdir(dirname(cacheFile), { recursive: true }).catch(_ => false)
   const cached = await fs.promises.access(cacheFile).then(_ => true).catch(_ => false)
   console.log('File cached check ', cached, cacheFile)
   if (!cached) {
-    await getObject(resultKey)
-      .then(body => {
-        body.pipe(fs.createWriteStream(cacheFile))
+    await generateResult(filePath, null, cacheFile, result)
+      .then(_ => {
+        console.log('Regenerated output file', _)
       })
   }
 
-  const fileKey = getMetadataKey('flags', filePath)
-  console.log(fileKey)
+  const words = await getFlags(filePath)
 
-  const stored = await flagStore.find({ fileKey })
-  console.log(stored)
-  if (stored.length > 0) {
-    return { words: stored[0].words, corrections, cacheFile }
-  }
-
-  const query = 'SELECT s.words FROM s3object s'
-  const res = await queryS3(fileKey, query)
-  flagStore.update({ fileKey }, { fileKey, words: res.words }, { upsert: true })
-
-  return { words: res.words, corrections, cacheFile }
+  return { words, corrections, cacheFile }
 }
 
 export async function approveWords (filePath, pending) {
@@ -146,13 +148,8 @@ export async function approveWords (filePath, pending) {
   console.log('Approving/Correcting list', listToApprove)
 
   // uploading to s3
-  const fileKey = getMetadataKey('corrections', filePath)
-  const data = {
-    corrections: listToApprove,
-    path: filePath,
-    count: pending.length
-  }
-  const uploadResult = await uploadS3(fileKey, JSON.stringify(data))
+  const fileKey = CORRECTIONS_KEY(filePath)
+  const uploadResult = await uploadS3(fileKey, JSON.stringify(listToApprove))
   console.log('Corrections uploaded succesfully', uploadResult)
 
   return uploadResult
@@ -166,10 +163,7 @@ export const unlock = async file => {
 
   console.log('Checking if lock exists for ', appId, bucketName, fileKey)
 
-  const appWithLock = await getFromS3(fileKey, credentials, bucketName)
-    .then(body => {
-      return JSON.parse(body.toString('utf-8'))
-    })
+  const appWithLock = await getJsonFromS3(fileKey, credentials, bucketName)
     .then(res => {
       return res.appId
     })
@@ -203,10 +197,7 @@ export const lock = async (file, force = false) => {
 
   const appWithLock = force
     ? null
-    : await getFromS3(fileKey, credentials, bucketName)
-      .then(body => {
-        return JSON.parse(body.toString('utf-8'))
-      })
+    : await getJsonFromS3(fileKey, credentials, bucketName)
       .then(res => {
         return res.appId
       })
@@ -252,7 +243,7 @@ export async function finalizeFile (filePath, extras) {
     return p
   })
 
-  return generateResult(filePath, null, extras.type, extras.output, { pages: updatePages }, lookup)
+  return generateResult(filePath, null, extras.output, { pages: updatePages })
     .then(_ => {
       cleanUpFiles(filePath)
       return _
@@ -261,14 +252,14 @@ export async function finalizeFile (filePath, extras) {
 
 async function cleanUpFiles (filePath) {
   const cacheFile = getCacheFile(filePath)
-  const resultKey = getMetadataKey('result', filePath, 'pdf')
-  const flagsKey = getMetadataKey('flags', filePath)
   const lockKey = getMetadataKey('lock', filePath)
-  const correctionsKey = getMetadataKey('corrections', filePath)
+  const flagsKey = FLAGS_KEY(filePath)
+  const correctionsKey = CORRECTIONS_KEY(filePath)
+  const resultsKey = SAVED_RESULT_KEY(filePath)
+  const summaryKey = FLAGGED_SUMMARY_KEY(filePath)
 
-  Promise.all([
+  return Promise.all([
     fs.promises.unlink(cacheFile),
-    deleteObjects([resultKey, flagsKey, lockKey, correctionsKey])
-  ]
-  )
+    deleteObjects([flagsKey, lockKey, correctionsKey, resultsKey, summaryKey])
+  ])
 }
