@@ -29,6 +29,9 @@
           <v-icon v-text="'mdi-lock-open'" /> &nbsp; Force Aqquire Lock
         </v-btn>
         <v-spacer />
+        <v-btn text small @click="toggleSort">
+          <v-icon v-text="asc?'mdi-arrow-down':'mdi-arrow-up'" />
+        </v-btn>
         <v-btn-toggle v-model="view" mandatory>
           <v-btn text small value="12">
             <v-icon v-text="'mdi-cards-variant'" />
@@ -66,7 +69,9 @@
       <v-row style="max-height: 500px; overflow-y: scroll">
         <v-col v-for="word in words" :key="word.Id" cols="12" :sm="view">
           <v-card>
-            <pdf-vue :editable="editable" :word="word" :path="file.path" :cache-file="cacheFile" @save="saveWord" />
+            <pdf-vue :key="word.Id" :editable="editable" :word="word"
+                     :path="file.path" :cache-file="cacheFile" @save="saveWord"
+            />
           </v-card>
         </v-col>
 
@@ -99,6 +104,7 @@ export default {
   },
   data () {
     return {
+      asc: true,
       originalWords: [],
       corrections: [],
       cacheFile: null,
@@ -156,6 +162,12 @@ export default {
     })
   },
   methods: {
+    toggleSort () {
+      this.asc = !this.asc
+
+      this.originalWords.sort((a, b) => this.asc ? a.Page - b.Page : b.Page - a.Page)
+      console.log(this.originalWords)
+    },
     forceLock () {
       this.aqquireLock(true)
     },
