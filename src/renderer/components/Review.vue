@@ -163,6 +163,12 @@ export default {
         this.cacheFile = res.cacheFile
         this.ready = true
       })
+        .catch(err => {
+          console.log('Error loading', err)
+
+          this.$dialog.notify.warning('Failed to load words ' + err.message)
+          this.close()
+        })
     },
     toggleSort () {
       this.asc = !this.asc
