@@ -117,7 +117,7 @@ function getCacheFile (filePath) {
   return resolve(`${rootPath}/results/${resultKey}`)
 }
 
-export const getFlaggedWords = async filePath => {
+export const getFlaggedWords = async (filePath, originalPath) => {
   const corrections = await getCorrections(filePath)
   const result = await getStoredResult(filePath)
 
@@ -127,7 +127,7 @@ export const getFlaggedWords = async filePath => {
   const cached = await fs.promises.access(cacheFile).then(_ => true).catch(_ => false)
   console.log('File cached check ', cached, cacheFile)
   if (!cached) {
-    await generateResult(filePath, null, cacheFile, result)
+    await generateResult(originalPath || filePath, null, cacheFile, result)
       .then(_ => {
         console.log('Regenerated output file', _)
       })
