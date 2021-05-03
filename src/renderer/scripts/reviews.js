@@ -4,21 +4,17 @@ import { dirname, resolve } from 'path'
 import { S3 } from '@aws-sdk/client-s3'
 import { generateResult } from '@/scripts/process_file'
 import { uploadS3, getJsonFromS3, queryS3, getMetadataPrefix, getMetadataKey, deleteObjects } from './aws'
-import { dbFactory, createDb, getConfig, getOrSetConfig, getCredential } from './db'
+import { resolver, createDb, getConfig, getOrSetConfig, getCredential } from './db'
 const { app, remote } = require('electron')
 
-const flagStore = createDb('flags') // dbFactory('flags.db')
-const resultStore = createDb('results') // dbFactory('results.db')
+const flagStore = createDb('flags')
+const resultStore = createDb('results')
 
 const FLAGS_KEY = filePath => getMetadataKey('flags/words', filePath)
 const FLAGGED_SUMMARY_KEY = filePath => getMetadataKey('flags/summary', filePath)
 const CORRECTIONS_KEY = filePath => getMetadataKey('flags/corrections', filePath)
 const FLAGGED_SUMMARY_PREFIX = getMetadataPrefix('flags/summary')
 const SAVED_RESULT_KEY = filePath => getMetadataKey('flags/results', filePath)
-
-function resolver (resolve, reject) {
-  return (err, docs) => err ? reject(err) : resolve(docs)
-}
 
 export const flagForReview = async (filePath, flags, pages, extras) => {
   const flaggsKey = FLAGS_KEY(filePath)
@@ -75,7 +71,7 @@ export const getStoredResult = async filePath => {
   const storedPages = await new Promise(resolve => resultStore.find({ fileKey }, resolver(resolve)))
   const storedFlags = await getFlags(filePath)
 
-  if (storedPages.length > 0) {
+  if (storedPages.length > 0 && storedPages[0].pages.length > 0) {
     return { pages: storedPages[0].pages, flagged: storedFlags }
   }
 
@@ -104,7 +100,7 @@ export async function getFlags (filePath) {
 
   const stored = await new Promise(resolve => flagStore.find({ fileKey }, resolver(resolve)))
   console.log('Cached flags', stored)
-  if (stored.length > 0) {
+  if (stored.length > 0 && stored[0].flags.length > 0) {
     return stored[0].flags
   }
 
