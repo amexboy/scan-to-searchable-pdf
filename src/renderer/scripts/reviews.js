@@ -7,8 +7,8 @@ import { uploadS3, getJsonFromS3, queryS3, getMetadataPrefix, getMetadataKey, de
 import { resolver, createDb, getConfig, getOrSetConfig, getCredential } from './db'
 const { app, remote } = require('electron')
 
-const flagStore = createDb('flags')
-const resultStore = createDb('results')
+const flagStore = createDb('flags', { fileKey: { type: String, index: true } })
+const resultStore = createDb('results', { fileKey: { type: String, index: true } })
 
 const FLAGS_KEY = filePath => getMetadataKey('flags/words', filePath)
 const FLAGGED_SUMMARY_KEY = filePath => getMetadataKey('flags/summary', filePath)

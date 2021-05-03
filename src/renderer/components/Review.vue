@@ -155,11 +155,12 @@ export default {
   methods: {
     init () {
       const init = this.editable ? this.aqquireLock(false) : Promise.resolve(false)
+      this.ready = false
       init.then(async () => {
         const res = await getFlaggedWords(this.file.path, this.file.extras.originalPath)
         console.log('Flagged words and corrections for file ', this.file.path, res)
-        this.originalWords = res.words
         this.corrections = res.corrections
+        this.originalWords = res.words
         this.cacheFile = res.cacheFile
         this.ready = true
       })
