@@ -2,6 +2,8 @@ const { app, remote } = require('electron')
 const Datastore = require('nedb-promises')
 
 const datastores = {}
+const isDev = process.env.NODE_ENV === 'development'
+const filePath = `${isDev ? '.' : (app || remote.app).getPath('home')}/searchable-pdf-data`
 
 export const dbFactory = fileName => {
   if (datastores[fileName]) {
@@ -9,9 +11,8 @@ export const dbFactory = fileName => {
     return datastores[fileName]
   }
 
-  const filePath = process.env.NODE_ENV === 'development' ? '.' : (app || remote.app).getPath('home')
   const datastore = Datastore.create({
-    filename: `${filePath}/searchable-pdf-data/${fileName}`,
+    filename: `${filePath}/${fileName}`,
     timestampData: true,
     autoload: true
   })
@@ -53,4 +54,15 @@ export const setAwsAccess = (apiKeyId, apiKeySecret, region) => {
     setConfig('apiKeySecret', apiKeySecret),
     setConfig('region', region)
   ])
+}
+
+const LinvoDB = require('linvodb3')
+
+LinvoDB.defaults.store = { db: require('level-js') } // Comment out to use LevelDB instead of level-js
+LinvoDB.dbPath = filePath
+
+export function createDb (name, schema = {}) {
+  const Doc = new LinvoDB(name, schema)
+
+  return Doc
 }

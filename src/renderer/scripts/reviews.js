@@ -4,17 +4,21 @@ import { dirname, resolve } from 'path'
 import { S3 } from '@aws-sdk/client-s3'
 import { generateResult } from '@/scripts/process_file'
 import { uploadS3, getJsonFromS3, queryS3, getMetadataPrefix, getMetadataKey, deleteObjects } from './aws'
-import { dbFactory, getConfig, getOrSetConfig, getCredential } from './db'
+import { dbFactory, createDb, getConfig, getOrSetConfig, getCredential } from './db'
 const { app, remote } = require('electron')
 
-const flagStore = dbFactory('flags.db')
-const resultStore = dbFactory('results.db')
+const flagStore = createDb('flags') // dbFactory('flags.db')
+const resultStore = createDb('results') // dbFactory('results.db')
 
 const FLAGS_KEY = filePath => getMetadataKey('flags/words', filePath)
 const FLAGGED_SUMMARY_KEY = filePath => getMetadataKey('flags/summary', filePath)
 const CORRECTIONS_KEY = filePath => getMetadataKey('flags/corrections', filePath)
 const FLAGGED_SUMMARY_PREFIX = getMetadataPrefix('flags/summary')
 const SAVED_RESULT_KEY = filePath => getMetadataKey('flags/results', filePath)
+
+function resolver (resolve, reject) {
+  return (err, docs) => err ? reject(err) : resolve(docs)
+}
 
 export const flagForReview = async (filePath, flags, pages, extras) => {
   const flaggsKey = FLAGS_KEY(filePath)
@@ -68,7 +72,7 @@ export const getStoredResult = async filePath => {
   const fileKey = SAVED_RESULT_KEY(filePath)
   console.log('Stored result fileKey', fileKey)
 
-  const storedPages = await resultStore.find({ fileKey })
+  const storedPages = await new Promise(resolve => resultStore.find({ fileKey }, resolver(resolve)))
   const storedFlags = await getFlags(filePath)
 
   if (storedPages.length > 0) {
@@ -98,7 +102,7 @@ export async function getCorrections (filePath) {
 export async function getFlags (filePath) {
   const fileKey = FLAGS_KEY(filePath)
 
-  const stored = await flagStore.find({ fileKey })
+  const stored = await new Promise(resolve => flagStore.find({ fileKey }, resolver(resolve)))
   console.log('Cached flags', stored)
   if (stored.length > 0) {
     return stored[0].flags
@@ -117,7 +121,7 @@ function getCacheFile (filePath) {
   return resolve(`${rootPath}/results/${resultKey}`)
 }
 
-export const getFlaggedWords = async (filePath, originalPath) => {
+export async function getFlaggedWords (filePath, originalPath) {
   const corrections = await getCorrections(filePath)
   const result = await getStoredResult(filePath)
 
