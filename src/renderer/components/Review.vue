@@ -15,10 +15,10 @@
           <v-icon v-text="'mdi-reload'" />
         </v-btn> -->
         <v-spacer />
-        <v-btn v-if="!done" text small color="green" :disabled="!editable" @click="approveAllDialog">
+        <v-btn v-if="canEdit && !done" text small color="green" :disabled="!editable" @click="approveAllDialog">
           <v-icon v-text="'mdi-check-all'" /> &nbsp; Bulk Approve
         </v-btn>
-        <v-btn v-if="done && pending.length === 0"
+        <v-btn v-if="canEdit && done && pending.length === 0"
                small text :loading="saving" @click="finalize"
         >
           <v-icon v-text="'mdi-check-all'" /> &nbsp; Finalize
@@ -45,7 +45,7 @@
     <v-card-text v-if="!ready ">
       Please wait while the necessary data is loaded
     </v-card-text>
-    <v-card-text v-else-if="done && pending.length > 0">
+    <v-card-text v-else-if="canEdit && done && pending.length > 0">
       <v-row justify="center">
         {{ pending.length }} flagged words waiting saved. Save?
       </v-row>
@@ -53,7 +53,7 @@
         <v-btn small text @click="save"><v-icon v-text="'mdi-content-save'" /> &nbsp; Save </v-btn>
       </v-row>
     </v-card-text>
-    <v-card-text v-else-if="done && pending.length === 0">
+    <v-card-text v-else-if="canEdit && done && pending.length === 0">
       <v-row justify="center">
         You have reviewed all flagged words. Proceed to re-generate the file?
       </v-row>
@@ -83,7 +83,7 @@
   </v-card>
 </template>
 <script>
-import { lock, approveWords, getFlaggedWords, unlock, finalizeFile } from '@/scripts/reviews'
+import { hasLock, lock, approveWords, getFlaggedWords, unlock, finalizeFile } from '@/scripts/reviews'
 import EditWord from '@/components/EditWord.vue'
 import ApproveConfidence from '@/components/ApproveConfidence.vue'
 import { splitPath } from '@/scripts/utils'
@@ -244,12 +244,21 @@ export default {
     },
     save () {
       this.saving = true
-      return approveWords(this.file.path, this.pending)
+      hasLock(this.file.path).then(res => {
+        if (res) {
+          return approveWords(this.file.path, this.pending)
+        }
+
+        return new Error('You do not have locks')
+      })
         .then(_ => {
           this.$dialog.notify.success('Changes were succesfully saved')
           this.pending = []
         })
         .then(this.init)
+        .catch(err => {
+          this.$dialog.notify.error(err.message)
+        })
         .finally(_ => {
           this.saving = false
         })

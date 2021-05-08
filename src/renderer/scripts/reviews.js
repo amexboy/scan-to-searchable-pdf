@@ -155,7 +155,7 @@ export async function approveWords (filePath, pending) {
   return uploadResult
 }
 
-export const unlock = async file => {
+export async function unlock (file) {
   const credentials = await getCredential()
   const appId = await getOrSetConfig('app_id', Math.random().toString(36).substring(7))
   const bucketName = await getConfig('bucket_name')
@@ -163,20 +163,13 @@ export const unlock = async file => {
 
   console.log('Checking if lock exists for ', appId, bucketName, fileKey)
 
-  const appWithLock = await getJsonFromS3(fileKey, credentials, bucketName)
-    .then(res => {
-      return res.appId
-    })
-    .catch(_ => {
-      console.log('Maybe', _)
-      return null
-    })
+  const lock = await hasLock(file)
 
-  if (appWithLock !== appId) {
+  if (lock) {
     return { success: true }
   }
 
-  console.log('Going to release lock', appWithLock, appId)
+  console.log('Going to release lock', appId)
 
   const lockStatus = await uploadS3(fileKey, '', credentials, bucketName)
     .then(upload => {
@@ -187,32 +180,41 @@ export const unlock = async file => {
   return lockStatus ? { success: true } : { success: false }
 }
 
+export async function hasLock (file) {
+  const fileKey = getMetadataKey('lock', file)
+  const credentials = await getCredential()
+  const bucketName = await getConfig('bucket_name')
+  const appId = await getOrSetConfig('app_id', Math.random().toString(36).substring(7))
+
+  const appWithLock = await getJsonFromS3(fileKey, credentials, bucketName)
+    .then(res => {
+      return res.appId
+    })
+    .catch(_ => {
+      console.log('Maybe', _)
+      return null
+    })
+
+  console.log('App wit lock', appWithLock)
+  return appId === appWithLock
+}
 export const lock = async (file, force = false) => {
   const credentials = await getCredential()
-  const appId = await getOrSetConfig('app_id', Math.random().toString(36).substring(7))
   const bucketName = await getConfig('bucket_name')
+  const appId = await getOrSetConfig('app_id', Math.random().toString(36).substring(7))
   const fileKey = getMetadataKey('lock', file)
 
   console.log('Checking if lock exists for ', appId, bucketName, fileKey)
 
-  const appWithLock = force
-    ? null
-    : await getJsonFromS3(fileKey, credentials, bucketName)
-      .then(res => {
-        return res.appId
-      })
-      .catch(_ => {
-        console.log('Maybe', _)
-        return null
-      })
+  const lock = force ? false : await hasLock(file)
 
-  if (appWithLock != null && appWithLock !== appId) {
-    return { success: false }
-  } else if (appWithLock === appId) {
+  if (lock) {
     return { success: true }
+  } else if (!force) {
+    return { success: false }
   }
 
-  console.log('Going to aquire lock', appWithLock, force, appId)
+  console.log('Going to aquire lock', force, appId)
 
   const lockStatus = await uploadS3(fileKey, JSON.stringify({ appId }), credentials, bucketName)
     .then(upload => {
@@ -224,6 +226,10 @@ export const lock = async (file, force = false) => {
 }
 
 export async function finalizeFile (filePath, extras) {
+  const locked = await hasLock(filePath)
+  if (!locked) {
+    return new Error('You do not have lock')
+  }
   console.log('Finalizing review for ', filePath, extras)
   const corrections = (await getCorrections(filePath)).map(c => [c.wordId, c.newWord])
   const lookup = Object.fromEntries(corrections)
