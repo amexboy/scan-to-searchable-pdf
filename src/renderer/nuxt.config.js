@@ -42,7 +42,7 @@ module.exports = {
   ],
   vuetifyDialog: {
     notify: {
-      position: 'top-left'
+      position: 'bottom-right'
     }
   },
   vuetify: {

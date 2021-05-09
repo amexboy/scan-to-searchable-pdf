@@ -195,8 +195,8 @@ export async function getLock (file) {
       return null
     })
 
-  console.log('App with lock', appWithLock)
-  return { locked: !appWithLock, hasLock: appId === appWithLock }
+  console.log('App with lock', { appWithLock, locked: !!appWithLock, hasLock: appId === appWithLock })
+  return { locked: !!appWithLock, hasLock: appId === appWithLock }
 }
 
 export async function hasLock (file) {

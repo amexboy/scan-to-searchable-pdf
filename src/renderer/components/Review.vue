@@ -69,7 +69,7 @@
       <v-row style="max-height: 500px; overflow-y: scroll">
         <v-col v-for="word in words" :key="word.Id" cols="12" :sm="view">
           <v-card>
-            <pdf-vue :key="word.Id" :editable="editable" :word="word"
+            <pdf-vue :key="word.Id" :editable="canEdit" :word="word"
                      :path="file.path" :cache-file="cacheFile" @save="saveWord"
             />
           </v-card>
