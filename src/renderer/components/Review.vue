@@ -244,13 +244,14 @@ export default {
     },
     save () {
       this.saving = true
-      hasLock(this.file.path).then(res => {
-        if (res) {
-          return approveWords(this.file.path, this.pending)
-        }
+      hasLock(this.file.path)
+        .then(res => {
+          if (res) {
+            return approveWords(this.file.path, this.pending)
+          }
 
-        return new Error('You do not have locks')
-      })
+          throw new Error('You do not have lock')
+        })
         .then(_ => {
           this.$dialog.notify.success('Changes were succesfully saved')
           this.pending = []
@@ -269,6 +270,9 @@ export default {
         .then(_ => {
           this.close()
           this.$dialog.notify.success('Changes were succesfully saved')
+        })
+        .catch(err => {
+          this.$dialog.notify.error(err.message)
         })
         .finally(_ => {
           this.saving = false

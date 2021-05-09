@@ -163,9 +163,9 @@ export async function unlock (file) {
 
   console.log('Checking if lock exists for ', appId, bucketName, fileKey)
 
-  const lock = await hasLock(file)
+  const lock = await getLock(file)
 
-  if (lock) {
+  if (!lock.hasLock) {
     return { success: true }
   }
 
@@ -180,7 +180,7 @@ export async function unlock (file) {
   return lockStatus ? { success: true } : { success: false }
 }
 
-export async function hasLock (file) {
+export async function getLock (file) {
   const fileKey = getMetadataKey('lock', file)
   const credentials = await getCredential()
   const bucketName = await getConfig('bucket_name')
@@ -195,9 +195,16 @@ export async function hasLock (file) {
       return null
     })
 
-  console.log('App wit lock', appWithLock)
-  return appId === appWithLock
+  console.log('App with lock', appWithLock)
+  return { locked: !appWithLock, hasLock: appId === appWithLock }
 }
+
+export async function hasLock (file) {
+  const lock = await getLock(file)
+
+  return lock.hasLock
+}
+
 export const lock = async (file, force = false) => {
   const credentials = await getCredential()
   const bucketName = await getConfig('bucket_name')
@@ -206,11 +213,11 @@ export const lock = async (file, force = false) => {
 
   console.log('Checking if lock exists for ', appId, bucketName, fileKey)
 
-  const lock = force ? false : await hasLock(file)
+  const lock = force ? false : await getLock(file)
 
-  if (lock) {
+  if (lock.hasLock) {
     return { success: true }
-  } else if (!force) {
+  } else if (lock.locked && !force) {
     return { success: false }
   }
 
