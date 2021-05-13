@@ -1,10 +1,10 @@
 
 import fs from 'fs'
 import { dirname, resolve } from 'path'
-import { S3 } from '@aws-sdk/client-s3'
 import { generateResult } from '@/scripts/process_file'
-import { uploadS3, getJsonFromS3, queryS3, getMetadataPrefix, getMetadataKey, deleteObjects } from './aws'
-import { resolver, createDb, getConfig, getOrSetConfig, getCredential } from './db'
+import { getMetadataPrefix, getMetadataKey } from './aws'
+import { list, getToken, setJson, getJson, deleteFiles } from './onedrive'
+import { resolver, createDb, getOrSetConfig } from './db'
 const { app, remote } = require('electron')
 
 const flagStore = createDb('flags', { fileKey: { type: String, index: true } })
@@ -21,18 +21,18 @@ export const flagForReview = async (filePath, flags, pages, extras) => {
   const summaryKey = FLAGGED_SUMMARY_KEY(filePath)
   const pagesKey = SAVED_RESULT_KEY(filePath)
 
-  const uploadResult = await Promise.all([
+  const uploadResult = await getToken().then(_ => Promise.all([
 
-    uploadS3(summaryKey, JSON.stringify({
+    setJson(summaryKey, {
       extras,
       path: filePath,
       flagsCount: flags.length
-    })),
+    }),
 
-    uploadS3(flaggsKey, JSON.stringify(flags)),
+    setJson(flaggsKey, flags),
 
-    uploadS3(pagesKey, JSON.stringify(pages))
-  ])
+    setJson(pagesKey, pages)
+  ]))
 
   console.log('Flags uploaded succesfully', uploadResult)
 
@@ -40,28 +40,17 @@ export const flagForReview = async (filePath, flags, pages, extras) => {
 }
 
 export const getFlagedFiles = async () => {
-  const credentials = await getCredential()
-  const s3 = new S3(credentials)
-  const bucketName = await getConfig('bucket_name')
-
-  const request = {
-    Bucket: bucketName,
-    Prefix: FLAGGED_SUMMARY_PREFIX
-  }
-
-  const files = await s3.listObjects(request)
-    .then(res => res.Contents || [])
+  const files = await list(FLAGGED_SUMMARY_PREFIX)
     .catch(err => {
       console.log(err)
       return []
     })
 
-  console.log('Flagged objects', files, s3)
-  const query = 'SELECT s.path, s.extras, s.flagsCount FROM s3object[*] s LIMIT 1'
+  console.log('Flagged objects', files)
 
   return Promise.all(
-    files.map(f => f.Key)
-      .map(key => queryS3(key, query)))
+    files.map(f => f.name)
+      .map(key => getJson(`${FLAGGED_SUMMARY_PREFIX}/${key}`)))
 }
 
 export const getStoredResult = async filePath => {
@@ -75,7 +64,7 @@ export const getStoredResult = async filePath => {
     return { pages: storedPages[0].pages, flagged: storedFlags }
   }
 
-  const pages = await getJsonFromS3(fileKey).catch(_ => null) //, credentials, bucketName)
+  const pages = await getJson(fileKey).catch(_ => null) //, credentials, bucketName)
 
   console.log('Found pages', pages)
 
@@ -90,7 +79,7 @@ export const getStoredResult = async filePath => {
 export async function getCorrections (filePath) {
   const correctionsKey = CORRECTIONS_KEY(filePath)
 
-  const corrections = await getJsonFromS3(correctionsKey).catch(_ => [])
+  const corrections = await getJson(correctionsKey).catch(_ => [])
 
   return corrections
 }
@@ -104,7 +93,7 @@ export async function getFlags (filePath) {
     return stored[0].flags
   }
 
-  const result = await getJsonFromS3(fileKey).catch(_ => [])
+  const result = await getJson(fileKey).catch(_ => [])
   console.log('Flags for file', result)
 
   flagStore.update({ fileKey }, { fileKey, flags: result }, { upsert: true })
@@ -119,7 +108,6 @@ function getCacheFile (filePath) {
 
 export async function getFlaggedWords (filePath, originalPath) {
   const corrections = await getCorrections(filePath)
-  const result = await getStoredResult(filePath)
 
   const cacheFile = getCacheFile(filePath)
 
@@ -127,6 +115,8 @@ export async function getFlaggedWords (filePath, originalPath) {
   const cached = await fs.promises.access(cacheFile).then(_ => true).catch(_ => false)
   console.log('File cached check ', cached, cacheFile)
   if (!cached) {
+    const result = await getStoredResult(filePath)
+
     await generateResult(originalPath || filePath, null, cacheFile, result)
       .then(_ => {
         console.log('Regenerated output file', _)
@@ -149,19 +139,17 @@ export async function approveWords (filePath, pending) {
 
   // uploading to s3
   const fileKey = CORRECTIONS_KEY(filePath)
-  const uploadResult = await uploadS3(fileKey, JSON.stringify(listToApprove))
+  const uploadResult = await setJson(fileKey, listToApprove)
   console.log('Corrections uploaded succesfully', uploadResult)
 
   return uploadResult
 }
 
 export async function unlock (file) {
-  const credentials = await getCredential()
   const appId = await getOrSetConfig('app_id', Math.random().toString(36).substring(7))
-  const bucketName = await getConfig('bucket_name')
   const fileKey = getMetadataKey('lock', file)
 
-  console.log('Checking if lock exists for ', appId, bucketName, fileKey)
+  console.log('Checking if lock exists for ', appId, fileKey)
 
   const lock = await getLock(file)
 
@@ -171,7 +159,7 @@ export async function unlock (file) {
 
   console.log('Going to release lock', appId)
 
-  const lockStatus = await uploadS3(fileKey, '', credentials, bucketName)
+  const lockStatus = await setJson(fileKey, {})
     .then(upload => {
       return true
     })
@@ -182,11 +170,9 @@ export async function unlock (file) {
 
 export async function getLock (file) {
   const fileKey = getMetadataKey('lock', file)
-  const credentials = await getCredential()
-  const bucketName = await getConfig('bucket_name')
   const appId = await getOrSetConfig('app_id', Math.random().toString(36).substring(7))
 
-  const appWithLock = await getJsonFromS3(fileKey, credentials, bucketName)
+  const appWithLock = await getJson(fileKey)
     .then(res => {
       return res.appId
     })
@@ -206,12 +192,10 @@ export async function hasLock (file) {
 }
 
 export const lock = async (file, force = false) => {
-  const credentials = await getCredential()
-  const bucketName = await getConfig('bucket_name')
   const appId = await getOrSetConfig('app_id', Math.random().toString(36).substring(7))
   const fileKey = getMetadataKey('lock', file)
 
-  console.log('Checking if lock exists for ', appId, bucketName, fileKey)
+  console.log('Checking if lock exists for ', appId, fileKey)
 
   const lock = force ? false : await getLock(file)
 
@@ -223,7 +207,7 @@ export const lock = async (file, force = false) => {
 
   console.log('Going to aquire lock', force, appId)
 
-  const lockStatus = await uploadS3(fileKey, JSON.stringify({ appId }), credentials, bucketName)
+  const lockStatus = await setJson(fileKey, { appId })
     .then(upload => {
       return true
     })
@@ -274,6 +258,6 @@ async function cleanUpFiles (filePath) {
 
   return Promise.all([
     fs.promises.unlink(cacheFile),
-    deleteObjects([flagsKey, lockKey, correctionsKey, resultsKey, summaryKey])
+    deleteFiles([flagsKey, lockKey, correctionsKey, resultsKey, summaryKey])
   ])
 }

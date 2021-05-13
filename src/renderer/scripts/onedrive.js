@@ -1,4 +1,5 @@
 import { CryptoProvider, PublicClientApplication } from '@azure/msal-node'
+import axios from 'axios'
 import { setConfig } from './db'
 
 const { BrowserWindow } = require('electron').remote
@@ -109,12 +110,6 @@ export async function getTokenInteractive (authWindow, tokenRequest) {
 
   const authCodeUrl = await pca.getAuthCodeUrl(authCodeUrlParams)
 
-  // register the custom file protocol in redirect URI
-  //   protocol.registerFileProtocol(redirectUri.split(':')[0], (req, callback) => {
-  //     const requestUrl = url.parse(req.url, true)
-  //     callback(path.normalize(`${__dirname}/${requestUrl.path}`))
-  //   })
-
   const authCode = await listenForAuthCode(authCodeUrl, authWindow) // see below
 
   const authResponse = await pca.acquireTokenByCode({
@@ -149,4 +144,75 @@ async function listenForAuthCode (navigateUrl, authWindow) {
       }
     })
   })
+}
+const baseUrl = 'https://graph.microsoft.com/v1.0/me/drive/root'
+// const path = ':/path/to/file'
+
+export async function list (path) {
+  const url = `${baseUrl}:/${path}:/children`
+  const token = await getToken()
+  const headers = {
+    headers: {
+      'Authorization': `Bearer ${token.accessToken}`
+    }
+  }
+
+  return axios.get(url, headers)
+    .then(res => {
+      console.log('Response', res)
+      return res.data.value
+    })
+}
+
+export async function getJson (path) {
+  const url = `${baseUrl}:/${path}`
+  const token = await getToken()
+  const headers = {
+    headers: {
+      'Authorization': `Bearer ${token.accessToken}`
+    }
+  }
+
+  return axios.get(url, headers)
+    .then(res => {
+      console.log('Response', res)
+      return res.data['@microsoft.graph.downloadUrl']
+    })
+    .then(downloadUrl => axios.get(downloadUrl))
+    .then(result => result.data)
+}
+
+export async function setJson (path, data) {
+  const url = `${baseUrl}:/${path}:/content`
+  const token = await getToken()
+  const headers = {
+    headers: {
+      'Authorization': `Bearer ${token.accessToken}`
+    }
+  }
+
+  return axios.put(url, data, headers)
+    .then(res => {
+      console.log('Response', res)
+      return res
+    })
+}
+
+export async function deleteFile (path) {
+  const url = `${baseUrl}:/${path}`
+  const token = await getToken()
+  const headers = {
+    headers: {
+      'Authorization': `Bearer ${token.accessToken}`
+    }
+  }
+
+  return axios.delete(url, headers)
+    .then(res => {
+      console.log('Response', res)
+      return res
+    })
+}
+export async function deleteFiles (files) {
+  return Promise.all(files.map(deleteFile))
 }
