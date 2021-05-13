@@ -43,12 +43,20 @@
                             label="Min confidence"
               />
             </v-col>
+            <v-col cols="12" sm="6">
+              <v-text-field v-model="onedriveAuthStatus" disabled label="One Drive Authentication" />
+            </v-col>
+            <v-col cols="12" sm="6">
+              <v-btn text :loading="processing" color="green" @click="login">
+                <v-icon>mdi-account</v-icon> &nbsp; Login
+              </v-btn>
+            </v-col>
           </v-row>
         </v-list-item>
       </v-list-item-group>
       <v-list-item>
         <v-spacer />
-        <v-btn text :loading="processing" color="green" @click="save">
+        <v-btn text :loading="processing" color="primary" @click="save">
           <v-icon>mdi-content-save</v-icon> &nbsp; Save
         </v-btn>
       </v-list-item>
@@ -58,10 +66,12 @@
 
 <script>
 import { setAwsAccess, getCredential, getConfig, setConfig } from '@/scripts/db'
+import { getToken } from '@/scripts/onedrive'
 
 export default {
   data () {
     return {
+      onedriveAuthStatus: '',
       processing: false,
       bucketName: '',
       confidence: '',
@@ -88,6 +98,11 @@ export default {
         console.log(appId)
         this.appId = appId
       })
+    getConfig('onedrive_auth')
+      .then(config => {
+        console.log(config)
+        this.onedriveAuthStatus = this.activeStatus(config)
+      })
     getCredential().then(config => {
       console.log(config)
       this.apiKeyId = config.credentials ? config.credentials.accessKeyId : ''
@@ -96,6 +111,18 @@ export default {
     })
   },
   methods: {
+    login () {
+      getToken().then(r => {
+        console.log('Token response', r)
+      })
+    },
+    activeStatus (config) {
+      if (!config) {
+        return 'Not Configured'
+      }
+
+      return 'Active'
+    },
     save () {
       this.processing = true
       Promise.all([
