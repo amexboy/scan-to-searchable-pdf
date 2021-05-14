@@ -1,6 +1,6 @@
 import { CryptoProvider, PublicClientApplication } from '@azure/msal-node'
 import axios from 'axios'
-import { setConfig } from './db'
+import { setConfig, getConfig } from './db'
 
 const { BrowserWindow } = require('electron').remote
 // import { app, BrowserWindow, ipcMain } from 'electron'
@@ -145,11 +145,14 @@ async function listenForAuthCode (navigateUrl, authWindow) {
     })
   })
 }
-const baseUrl = 'https://graph.microsoft.com/v1.0/me/drive/root'
-// const path = ':/path/to/file'
+const apiUrl = async (path, resource) => {
+  const base = await getConfig('onedrive_root', 'root')
+
+  return `https://graph.microsoft.com/v1.0/me/drive/${base}${path ? ':/' + path : ''}${resource ? ':/' + resource : ''}`
+}
 
 export async function list (path) {
-  const url = `${baseUrl}:/${path}:/children`
+  const url = await apiUrl(path, 'children')
   const token = await getToken()
   const headers = {
     headers: {
@@ -165,7 +168,7 @@ export async function list (path) {
 }
 
 export async function getJson (path) {
-  const url = `${baseUrl}:/${path}`
+  const url = await apiUrl(path)
   const token = await getToken()
   const headers = {
     headers: {
@@ -183,7 +186,7 @@ export async function getJson (path) {
 }
 
 export async function setJson (path, data) {
-  const url = `${baseUrl}:/${path}:/content`
+  const url = await apiUrl(path, 'content')
   const token = await getToken()
   const headers = {
     headers: {
@@ -199,7 +202,7 @@ export async function setJson (path, data) {
 }
 
 export async function deleteFile (path) {
-  const url = `${baseUrl}:/${path}`
+  const url = await apiUrl(path)
   const token = await getToken()
   const headers = {
     headers: {

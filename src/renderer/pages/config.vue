@@ -44,9 +44,10 @@
               />
             </v-col>
             <v-col cols="12" sm="6">
-              <v-text-field v-model="onedriveAuthStatus" disabled label="One Drive Authentication" />
+              <v-text-field v-model="onedriveRoot" label="One drive root" />
             </v-col>
             <v-col cols="12" sm="6">
+              <v-text-field v-model="onedriveAuthStatus" disabled label="One Drive Authentication" />
               <v-btn text :loading="processing" color="green" @click="login">
                 <v-icon>mdi-account</v-icon> &nbsp; Login
               </v-btn>
@@ -74,6 +75,7 @@ export default {
       onedriveAuthStatus: '',
       processing: false,
       bucketName: '',
+      onedriveRoot: '',
       confidence: '',
       appId: '',
       region: '',
@@ -103,6 +105,11 @@ export default {
         console.log(config)
         this.onedriveAuthStatus = this.activeStatus(config)
       })
+    getConfig('onedrive_root', 'root')
+      .then(config => {
+        console.log('One drive root', config)
+        this.onedriveRoot = config
+      })
     getCredential().then(config => {
       console.log(config)
       this.apiKeyId = config.credentials ? config.credentials.accessKeyId : ''
@@ -131,8 +138,8 @@ export default {
         setConfig('bucket_name', this.bucketName),
         setAwsAccess(this.apiKeyId, this.apiKeySecret, this.region),
         setConfig('confidence', this.confidence),
-        setConfig('app_id', this.appId)
-
+        setConfig('app_id', this.appId),
+        setConfig('onedrive_root', this.onedriveRoot)
       ])
         .then(_ => {
           this.processing = false
