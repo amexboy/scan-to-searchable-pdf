@@ -2,15 +2,17 @@
   <v-card-text>
     <v-card>
       <v-data-table
+        v-model="selected"
         :headers="headers"
         :items="files"
         :search="search"
         :loading="loading"
         single-expand
         show-expand
+        show-select
       >
         <template #top>
-          <v-toolbar flat>
+          <v-toolbar flat extended>
             <v-toolbar-title>Flagged Files</v-toolbar-title>
             <v-spacer />
             <v-text-field
@@ -20,13 +22,21 @@
               single-line
               hide-details
             />
+            <template #extension>
+              <v-row>
+                <v-btn small text @click="reload">
+                  <v-icon>mdi-refresh</v-icon> &nbsp; Reload
+                </v-btn>
+                <v-spacer />
+                <v-btn small text color="primary" :disabled="selected.length===0" @click="bulkApprove">
+                  <v-icon>mdi-check-all</v-icon> &nbsp; Bulk Approve
+                </v-btn>
+              </v-row>
+            </template>
           </v-toolbar>
         </template>
         <template #item.actions="{ item }">
           <v-row>
-            <!-- <v-btn small text color="red"><v-icon>mdi-lock</v-icon></v-btn> -->
-            <!-- <v-btn small text color="green" @click="approveAllDialog(item.words)">
-                <v-icon>mdi-check</v-icon></v-btn> -->
             <v-btn small text color="primary" @click="review(item)"><v-icon>mdi-eye-outline</v-icon></v-btn>
             <v-btn small text color="primary" @click="review(item, true)"><v-icon>mdi-pencil</v-icon></v-btn>
           </v-row>
@@ -81,19 +91,19 @@
 import path from 'path'
 import { getFlagedFiles } from '@/scripts/reviews'
 import Review from '@/components/Review.vue'
+import ApproveConfidence from '@/components/ApproveConfidence.vue'
+import BulkApprove from '@/components/BulkApprove.vue'
 
 export default {
   data: () => {
     return {
       search: '',
       loading: true,
+      selected: [],
       flagged: [],
       headers: [{ text: 'File Name', value: 'name' },
         { text: 'Flagged Words', value: 'flagsCount' },
         { text: 'Actions', value: 'actions', sortable: false }
-        // { text: 'Path', value: 'path' },
-        // { text: 'Input', value: 'input' },
-        // { text: 'Output', value: 'output' }
       ]
     }
   },
@@ -119,6 +129,54 @@ export default {
           this.loading = false
           return flagged
         })
+    },
+    async approveAll (file, conf) {
+
+    },
+    async bulkApprove () {
+      this.saving = true
+
+      const result = await this.$dialog.showAndWait(ApproveConfidence, { confidence: 1, lock: true })
+
+      if (result && !result.cancel) {
+        const res = await this.$dialog.confirm({
+          text: `Approve ${this.selected.length} files for flagged words above ${result.confidence}% confidence`,
+          title: 'Are you sure?'
+        })
+
+        if (res) {
+          await this.$dialog.showAndWait(BulkApprove, {
+            layout: 'dialog',
+            width: '90%',
+            persistent: true,
+            confidence: result.confidence,
+            files: this.selected,
+            forceLock: result.forceLock
+          })
+          this.reload()
+        }
+        // this.selected.forEach((f, i) => {
+        //   console.log(f)
+        // })
+
+        // const confidence = words.filter(w => w.Confidence > result.confidence)
+        // console.log('Words above confidence', confidence)
+
+        // if (res) {
+        //   confidence.forEach(w => {
+        //     this.saveWord({ file: this.path, word: w, newWord: w.Text })// .then(_ => this.removeFromWords(w))
+        //   })
+        //   this.save()
+        //     .then(_ => {
+        //       this.saving = false
+        //       this.$dialog.notify.success(`Approved all words aboove set confidence`)
+        //     })
+        // } else {
+        //   this.saving = false
+        // }
+      } else {
+        this.saving = false
+      }
     }
   }
 }

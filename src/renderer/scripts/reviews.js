@@ -141,7 +141,7 @@ export async function approveWords (filePath, pending) {
   const listToApprove = [
     ...corrections,
     ...pending.map(w =>
-      ({ wordId: w.word.Id, newWord: w.newWord }))
+      ({ wordId: w.word.Id, newWord: w.newWord || w.word.Text }))
   ]
   console.log('Approving/Correcting list', listToApprove)
 
