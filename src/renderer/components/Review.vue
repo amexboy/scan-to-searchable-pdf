@@ -26,7 +26,7 @@
         <v-btn v-if="ready && editable && !hasLock" text small color="red"
                @click="forceLock"
         >
-          <v-icon v-text="'mdi-lock-open'" /> &nbsp; Force Aqquire Lock
+          <v-icon v-text="'mdi-lock-open'" /> &nbsp; Force Acquire Lock
         </v-btn>
         <v-spacer />
         <v-btn text small @click="toggleSort">
