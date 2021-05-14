@@ -50,9 +50,6 @@
               <v-btn text :loading="processing" color="green" @click="login">
                 <v-icon>mdi-account</v-icon> &nbsp; Login
               </v-btn>
-              <v-btn text :loading="processing" color="green" @click="testFile">
-                <v-icon>mdi-account</v-icon> &nbsp; Check File
-              </v-btn>
             </v-col>
           </v-row>
         </v-list-item>
@@ -69,7 +66,7 @@
 
 <script>
 import { setAwsAccess, getCredential, getConfig, setConfig } from '@/scripts/db'
-import { getToken, list } from '@/scripts/onedrive'
+import { getToken } from '@/scripts/onedrive'
 
 export default {
   data () {
@@ -117,7 +114,9 @@ export default {
     login () {
       getToken().then(r => {
         console.log('Token response', r)
+        this.$dialog.success('Token retrived successfully')
       })
+        .catch(err => this.$dialog.console.error('Failed to get token ' + err.message))
     },
     activeStatus (config) {
       if (!config) {
@@ -125,10 +124,6 @@ export default {
       }
 
       return 'Active'
-    },
-    testFile () {
-      list('/searchable-pdf/metadata')
-      // setJson('/test.txt', { hello: 'yes' }).then(t => console.log('Result ', t))
     },
     save () {
       this.processing = true

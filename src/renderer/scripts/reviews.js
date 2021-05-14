@@ -2,10 +2,18 @@
 import fs from 'fs'
 import { dirname, resolve } from 'path'
 import { generateResult } from '@/scripts/process_file'
-import { getMetadataPrefix, getMetadataKey } from './aws'
 import { list, getToken, setJson, getJson, deleteFiles } from './onedrive'
 import { resolver, createDb, getOrSetConfig } from './db'
 const { app, remote } = require('electron')
+
+export const getMetadataPrefix = type => {
+  return `searchable-pdf/metadata/${type}`
+}
+
+export const getMetadataKey = (type, file, suffix = 'json') => {
+  const key = `${file}`.replace(/[:/\\]/ig, '_')
+  return `${getMetadataPrefix(type)}/${key}.${suffix}`
+}
 
 const flagStore = createDb('flags', { fileKey: { type: String, index: true } })
 const resultStore = createDb('results', { fileKey: { type: String, index: true } })

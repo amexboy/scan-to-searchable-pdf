@@ -1,16 +1,8 @@
 import crypto from 'crypto'
 import { Textract } from '@aws-sdk/client-textract'
-import { GetObjectCommand, S3 } from '@aws-sdk/client-s3'
+import { S3 } from '@aws-sdk/client-s3'
 import { getConfig, getCredential } from '@/scripts/db'
 const checkInterval = 3000
-
-export const getMetadataPrefix = type => {
-  return `searchable-pdf/metadata/${type}`
-}
-export const getMetadataKey = (type, file, suffix = 'json') => {
-  const key = `${file}`.replace(/[:/\\]/ig, '_')
-  return `${getMetadataPrefix(type)}/${key}.${suffix}`
-}
 
 export const transform = async (fileName, result) => {
   if (!result) {
