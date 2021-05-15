@@ -134,49 +134,13 @@ export default {
 
     },
     async bulkApprove () {
-      this.saving = true
-
-      const result = await this.$dialog.showAndWait(ApproveConfidence, { confidence: 1, lock: true })
-
-      if (result && !result.cancel) {
-        const res = await this.$dialog.confirm({
-          text: `Approve ${this.selected.length} files for flagged words above ${result.confidence}% confidence`,
-          title: 'Are you sure?'
-        })
-
-        if (res) {
-          await this.$dialog.showAndWait(BulkApprove, {
-            layout: 'dialog',
-            width: '90%',
-            persistent: true,
-            confidence: result.confidence,
-            files: this.selected,
-            forceLock: result.forceLock
-          })
-          this.reload()
-        }
-        // this.selected.forEach((f, i) => {
-        //   console.log(f)
-        // })
-
-        // const confidence = words.filter(w => w.Confidence > result.confidence)
-        // console.log('Words above confidence', confidence)
-
-        // if (res) {
-        //   confidence.forEach(w => {
-        //     this.saveWord({ file: this.path, word: w, newWord: w.Text })// .then(_ => this.removeFromWords(w))
-        //   })
-        //   this.save()
-        //     .then(_ => {
-        //       this.saving = false
-        //       this.$dialog.notify.success(`Approved all words aboove set confidence`)
-        //     })
-        // } else {
-        //   this.saving = false
-        // }
-      } else {
-        this.saving = false
-      }
+      await this.$dialog.showAndWait(BulkApprove, {
+        layout: 'dialog',
+        width: '90%',
+        persistent: true,
+        files: this.selected
+      })
+      this.reload()
     }
   }
 }

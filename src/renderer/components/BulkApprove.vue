@@ -8,6 +8,29 @@
       </v-btn>
     </v-toolbar>
     <v-card-text>
+      <v-row>
+        <v-col cols="12" sm="9">
+          <v-row>
+            <v-text-field v-model="confidence" label="Minimum Confidence"
+                          :rules="[i => !!i || 'Required']"
+            />
+            <v-spacer />
+            <v-switch
+              v-model="forceLock"
+              label="Force Acquire Lock"
+            />
+          </v-row>
+        </v-col>
+        <v-col align="end" align-self="center">
+          <v-btn :loading="running"
+                 :disabled="done"
+                 text
+                 @click="run"
+          >
+            <v-icon v-text="'mdi-run'" /> &nbsp; Start
+          </v-btn>
+        </v-col>
+      </v-row>
       <v-simple-table>
         <template #default>
           <thead>
@@ -51,22 +74,18 @@ export default {
       type: Array,
       require: true,
       default: () => []
-    },
-    confidence: {
-      type: Number,
-      default: 1
-    },
-    forceLock: {
-      type: Boolean,
-      default: false
     }
   },
   data () {
     return {
+      confidence: 1,
+      forceLock: false,
+      running: false,
       currentFile: null,
       numberOfWords: {},
       finalize: {},
-      finalStatus: {}
+      finalStatus: {},
+      done: false
     }
   },
   computed: {
@@ -86,14 +105,34 @@ export default {
     }
   },
   mounted () {
-    this.init()
   },
   methods: {
-    init () {
+    async run () {
+      if (!this.confidence) {
+        return
+      }
+
+      const res = await this.$dialog.confirm({
+        text: `Approve ${this.files.length} files for flagged words above ${this.confidence}% confidence`,
+        title: 'Are you sure?'
+      })
+
+      if (!res) {
+        return
+      }
+
+      this.running = true
+
       Promise.all(
         this.files.map(async f => {
           return lock(f.path, this.forceLock)
-            .then(async res => {
+            .then(res => {
+              if (!res.success) {
+                throw new Error('Could not aquire lock')
+              }
+            })
+            .then(async _ => {
+              this.$set(this.finalStatus, f.path, { finished: false, status: 'Lock Acquired' })
               const flags = await getFlaggedWords(f.path)
               const filtered = flags.words.filter(f => f.Confidence > this.confidence)
               this.numberOfWords[f.path] = flags.words.length
@@ -132,6 +171,10 @@ export default {
         })
         .catch(_ => {
           this.$dialog.notify.error('Some files failed processing ')
+        })
+        .finally(_ => {
+          this.running = false
+          this.done = true
         })
     },
     close () {
