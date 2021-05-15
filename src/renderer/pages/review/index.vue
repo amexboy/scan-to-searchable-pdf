@@ -91,7 +91,6 @@
 import path from 'path'
 import { getFlagedFiles } from '@/scripts/reviews'
 import Review from '@/components/Review.vue'
-import ApproveConfidence from '@/components/ApproveConfidence.vue'
 import BulkApprove from '@/components/BulkApprove.vue'
 
 export default {

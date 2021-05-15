@@ -1,6 +1,6 @@
 {
   "name": "scanned-to-searchable-pdf",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Converts Images into searchable PDFs using AWS textract",
   "main": "./dist/main/index.js",
   "scripts": {
