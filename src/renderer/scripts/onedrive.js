@@ -30,17 +30,15 @@ function createAuthWindow () {
 }
 
 export async function getToken () {
-  const window = createAuthWindow()
-
-  const request = { scopes: ['Files.ReadWrite.All'] }
+  const request = { scopes: ['Files.ReadWrite.All', 'Sites.Read.All'] }
   const account = await getAccount()
   console.log('Cached account', account)
 
   let response
   if (account) {
-    response = getTokenSilent(window, { account, ...request })
+    response = getTokenSilent({ account, ...request })
   } else {
-    response = getTokenInteractive(window, request)
+    response = getTokenInteractive(request)
   }
 
   return response
@@ -48,16 +46,15 @@ export async function getToken () {
       setConfig('onedrive_auth', cred)
       return cred
     })
-    .finally(_ => window.close())
 }
 
-async function getTokenSilent (authWindow, tokenRequest) {
+async function getTokenSilent (tokenRequest) {
   try {
     return await pca.acquireTokenSilent(tokenRequest)
   } catch (error) {
     console.log('Silent token acquisition failed, acquiring token using pop up')
     const authCodeRequest = { ...this.authCodeUrlParams, ...tokenRequest }
-    return getTokenInteractive(authWindow, authCodeRequest)
+    return getTokenInteractive(authCodeRequest)
   }
 }
 
@@ -87,7 +84,7 @@ async function getAccount () {
  * @param {object} authWindow: Electron window object
  * @param {object} tokenRequest: token request object with scopes
  */
-export async function getTokenInteractive (authWindow, tokenRequest) {
+export async function getTokenInteractive (tokenRequest) {
   /**
      * Proof Key for Code Exchange (PKCE) Setup
      *
@@ -97,6 +94,7 @@ export async function getTokenInteractive (authWindow, tokenRequest) {
      */
 
   const { verifier, challenge } = await cryptoProvider.generatePkceCodes()
+  const authWindow = createAuthWindow()
 
   pkceCodes.verifier = verifier
   pkceCodes.challenge = challenge
@@ -118,6 +116,7 @@ export async function getTokenInteractive (authWindow, tokenRequest) {
     code: authCode,
     codeVerifier: pkceCodes.verifier // PKCE Code Verifier
   })
+  authWindow.close()
 
   return authResponse
 }
@@ -148,7 +147,7 @@ async function listenForAuthCode (navigateUrl, authWindow) {
 const apiUrl = async (path, resource) => {
   const base = await getConfig('onedrive_root', 'root')
 
-  return `https://graph.microsoft.com/v1.0/me/drive/${base}${path ? ':/' + path : ''}${resource ? ':/' + resource : ''}`
+  return `https://graph.microsoft.com/v1.0/${base}${path ? ':/' + path : ''}${resource ? ':/' + resource : ''}`
 }
 
 export async function list (path) {
