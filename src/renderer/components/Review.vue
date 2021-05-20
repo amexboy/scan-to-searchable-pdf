@@ -74,12 +74,16 @@
             />
           </v-card>
         </v-col>
-
         <v-col>
           <infinite-loading @infinite="scroll" />
         </v-col>
       </v-row>
     </v-card-text>
+    <v-pagination
+      v-model="pg"
+      :length="pglen"
+      circle
+    />
   </v-card>
 </template>
 <script>
@@ -105,6 +109,8 @@ export default {
   data () {
     return {
       asc: true,
+      pg: 1,
+      pglen: '',
       originalWords: [],
       corrections: [],
       cacheFile: null,
@@ -127,6 +133,7 @@ export default {
     words () {
       return this.originalWords
         .filter(w => !w.removed)
+        .filter(w => w.Page == this.pg)
         .filter(w => !this.hideWordIds.includes(w.Id))
         .slice(0, this.max)
     },
@@ -161,6 +168,7 @@ export default {
         console.log('Flagged words and corrections for file ', this.file.path, res)
         this.corrections = res.corrections
         this.originalWords = res.words
+        this.pglen = res.words[res.words.length - 1].Page
         this.cacheFile = res.cacheFile
         this.ready = true
       })
