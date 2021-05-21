@@ -16,7 +16,7 @@
         </v-btn> -->
         <v-spacer />
         <v-btn v-if="canEdit && !done" text small color="green" :disabled="!editable" @click="approveAllDialog">
-          <v-icon v-text="'mdi-check-all'" /> &nbsp; Bulk Approve
+          <v-icon v-text="'mdi-check-all'" /> &nbsp; Bulk Approveww
         </v-btn>
         <v-btn v-if="canEdit && done && pending.length === 0"
                small text :loading="saving" @click="finalize"

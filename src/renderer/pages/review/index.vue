@@ -7,6 +7,7 @@
         :items="files"
         :search="search"
         :loading="loading"
+        item-key="name"
         single-expand
         show-expand
         show-select
@@ -133,6 +134,7 @@ export default {
 
     },
     async bulkApprove () {
+      console.log(this.selected)
       await this.$dialog.showAndWait(BulkApprove, {
         layout: 'dialog',
         width: '90%',
