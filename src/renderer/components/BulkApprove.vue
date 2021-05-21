@@ -51,8 +51,8 @@
           </thead>
           <tbody>
             <tr
-              v-for="item in progress"
-              :key="item.path"
+              v-for="(item, i) in progress"
+              :key="i"
             >
               <td>{{ item.path }}</td>
               <td>{{ item.wordsCount }}</td>
@@ -100,8 +100,7 @@ export default {
           finalized,
           status
         })
-      }
-      )
+      })
     }
   },
   mounted () {
@@ -157,14 +156,22 @@ export default {
             .then(_ => {
               console.log('Finished processing' + f.path, _)
               this.$set(this.finalStatus, f.path,
-                { success: true, finished: true, status: this.finalize[f.path] ? 'Finalize' : 'Done' })
+                { success: true,
+                  finished: true,
+                  status: this.finalize[f.path] ? 'Output Generated' : 'Qualifying Words Approved'
+                })
+              return true
             })
             .catch(err => {
               console.log('Failed processing ' + f.path, err)
               this.$set(this.finalStatus, f.path, { success: false, finished: true, status: err.message })
+              return false
             })
         })
       )
+        .then(res => {
+          if (!res.every(r => r)) { throw new Error('Some files failed') }
+        })
         .then(_ => {
           this.$dialog.notify.success('Done processing all files')
           this.close()

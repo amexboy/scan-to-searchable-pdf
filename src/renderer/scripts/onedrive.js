@@ -32,7 +32,6 @@ function createAuthWindow () {
 export async function getToken () {
   const request = { scopes: ['Files.ReadWrite.All', 'Sites.Read.All'] }
   const account = await getAccount()
-  console.log('Cached account', account)
 
   let response
   if (account) {
