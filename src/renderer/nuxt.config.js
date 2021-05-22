@@ -37,7 +37,6 @@ module.exports = {
   ],
   modules: [
     '@nuxtjs/vuetify',
-    ['@nuxtjs/dotenv', { filename: `.env.${process.env.NODE_ENV}` }],
     ['vuetify-dialog/nuxt', { property: '$dialog' }]
   ],
   vuetifyDialog: {
