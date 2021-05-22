@@ -11,9 +11,6 @@
         <v-btn text small :disabled="pending.length == 0" @click="undo">
           <v-icon color="primary" v-text="'mdi-undo'" />
         </v-btn>
-        <!-- <v-btn text small>
-          <v-icon v-text="'mdi-reload'" />
-        </v-btn> -->
         <v-spacer />
         <v-btn v-if="canEdit && !done" text small color="green" :disabled="!editable" @click="approveAllDialog">
           <v-icon v-text="'mdi-check-all'" /> &nbsp; Bulk Approve
@@ -84,7 +81,6 @@
 </template>
 <script>
 import { hasLock, lock, approveWords, getFlaggedWords, unlock, finalizeFile } from '@/scripts/reviews'
-import EditWord from '@/components/EditWord.vue'
 import ApproveConfidence from '@/components/ApproveConfidence.vue'
 import { splitPath } from '@/scripts/utils'
 import InfiniteLoading from 'vue-infinite-loading'
@@ -227,20 +223,12 @@ export default {
       }
       console.log(data)
       this.pending.push(data)
-      // this.removeFromWords(data.word)
     },
     undo () {
       if (this.pending.length === 0) {
         return
       }
       this.pending.pop()
-      // this.undoQueue.push()
-    },
-    removeFromWords (word) {
-      const index = this.originalWords.indexOf(word)
-      if (index >= 0) {
-        this.originalWords.splice(index, 1)
-      }
     },
     save () {
       this.saving = true
@@ -287,13 +275,6 @@ export default {
         $state.loaded()
       }
     },
-    async edit (id) {
-      const result = await this.$dialog.showAndWait(EditWord, { word: id.text })
-
-      if (result && !result.cancel) {
-        this.approve(id, result.update)
-      }
-    },
     async approveAllDialog () {
       this.saving = true
       const words = this.originalWords
@@ -309,7 +290,7 @@ export default {
         })
         if (res) {
           confidence.forEach(w => {
-            this.saveWord({ file: this.path, word: w, newWord: w.Text })// .then(_ => this.removeFromWords(w))
+            this.saveWord({ file: this.path, word: w, newWord: w.Text })
           })
           this.save()
             .then(_ => {
