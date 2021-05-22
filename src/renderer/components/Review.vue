@@ -107,8 +107,8 @@
         next-icon="mdi-arrow-right"
         prev-icon="mdi-arrow-left"
       >
-        <v-bottom-navigation :value="pageIndex" color="primary">
-          <v-btn v-for="pageNumber in pageList" :key="pageNumber" @click="currnetPage()">
+        <v-bottom-navigation v-model="pageIndex" color="primary" @change="currnetPage">
+          <v-btn v-for="pageNumber in pageList" :key="pageNumber"  >
             <h1>{{ pageNumber }}</h1>
           </v-btn>
         </v-bottom-navigation>
@@ -394,7 +394,9 @@ export default {
       }
     },
     currnetPage () {
+      console.log("currentpage"+ this.pageIndex)
       this.page = this.pageList[this.pageIndex]
+
     },
     pagination () {
       for (;this.page <= this.pageLength; this.page++) {
