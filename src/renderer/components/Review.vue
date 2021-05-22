@@ -65,8 +65,8 @@
         {{ pending.length }} flagged words waiting saved. Save?
       </v-row>
       <v-row justify="center">
-        <v-btn small text @click="save"
-          ><v-icon v-text="'mdi-content-save'" /> &nbsp; Save
+        <v-btn small text @click="save">
+          <v-icon v-text="'mdi-content-save'" /> &nbsp; Save
         </v-btn>
       </v-row>
     </v-card-text>
@@ -123,13 +123,13 @@ import {
   approveWords,
   getFlaggedWords,
   unlock,
-  finalizeFile,
-} from "@/scripts/reviews";
-import EditWord from "@/components/EditWord.vue";
-import ApproveConfidence from "@/components/ApproveConfidence.vue";
-import { splitPath } from "@/scripts/utils";
-import InfiniteLoading from "vue-infinite-loading";
-import PdfVue from "@/components/PdfVue.vue";
+  finalizeFile
+} from '@/scripts/reviews'
+import EditWord from '@/components/EditWord.vue'
+import ApproveConfidence from '@/components/ApproveConfidence.vue'
+import { splitPath } from '@/scripts/utils'
+import InfiniteLoading from 'vue-infinite-loading'
+import PdfVue from '@/components/PdfVue.vue'
 
 export default {
   components: { PdfVue, InfiniteLoading },
@@ -137,16 +137,16 @@ export default {
     file: {
       type: Object,
       require: true,
-      default: () => ({ words: [] }),
+      default: () => ({ words: [] })
     },
     editable: {
-      type: Boolean,
-    },
+      type: Boolean
+    }
   },
-  data() {
+  data () {
     return {
       asc: true,
-      page:1,
+      page: 1,
       pageLength: 0,
       pageList: [],
       pageIndex: 0,
@@ -161,253 +161,249 @@ export default {
       hasLock: false,
       view: 6,
       max: 5,
-      search: "",
+      search: '',
       headers: [
-        { text: "File Name", value: "name" },
-        { text: "Flagged Words", value: "wordsCount" },
-        { text: "Actions", value: "actions", sortable: false },
-      ],
-    };
+        { text: 'File Name', value: 'name' },
+        { text: 'Flagged Words', value: 'wordsCount' },
+        { text: 'Actions', value: 'actions', sortable: false }
+      ]
+    }
   },
   computed: {
-    words() {
+    words () {
       return this.originalWords
-        .filter((w) => !w.removed)
-        .filter((w) => w.Page == this.page)
-        .filter((w) => !this.hideWordIds.includes(w.Id))
-        .slice(0, this.max);
+        .filter(w => !w.removed)
+        .filter(w => w.Page === this.page)
+        .filter(w => !this.hideWordIds.includes(w.Id))
+        .slice(0, this.max)
     },
 
-    hideWordIds() {
-      return [...this.correctionsIds, ...this.pendingWordIds];
+    hideWordIds () {
+      return [...this.correctionsIds, ...this.pendingWordIds]
     },
-    pendingWordIds() {
-      return this.pending.map((w) => w.word.Id);
+    pendingWordIds () {
+      return this.pending.map(w => w.word.Id)
     },
-    correctionsIds() {
-      return this.corrections.map((c) => c.wordId);
+    correctionsIds () {
+      return this.corrections.map(c => c.wordId)
     },
-    parents() {
-      return this.file.path ? splitPath(this.file.path, true) : [];
+    parents () {
+      return this.file.path ? splitPath(this.file.path, true) : []
     },
-    done() {
-      return this.ready && this.words.length === 0;
+    done () {
+      return this.ready && this.words.length === 0
     },
-    canEdit() {
-      return this.editable && this.hasLock;
-    },
+    canEdit () {
+      return this.editable && this.hasLock
+    }
   },
-  mounted() {
-    this.init();
+  mounted () {
+    this.init()
   },
 
   methods: {
-    init() {
+    init () {
       const init = this.editable
         ? this.aqquireLock(false)
-        : Promise.resolve(false);
-      this.ready = false;
+        : Promise.resolve(false)
+      this.ready = false
       init
         .then(async () => {
           const res = await getFlaggedWords(
             this.file.path,
             this.file.extras.originalPath
-          );
+          )
           console.log(
-            "Flagged words and corrections for file ",
+            'Flagged words and corrections for file ',
             this.file.path,
             res
-          );
-          this.corrections = res.corrections;
-          this.originalWords = res.words;
-          this.pageLength = res.words[res.words.length - 1].Page;
-          this.cacheFile = res.cacheFile;
-          this.ready = true;
+          )
+          this.corrections = res.corrections
+          this.originalWords = res.words
+          this.pageLength = res.words[res.words.length - 1].Page
+          this.cacheFile = res.cacheFile
+          this.ready = true
         })
-        .catch((err) => {
-          console.log("Error loading", err);
+        .catch(err => {
+          console.log('Error loading', err)
 
-          this.$dialog.notify.warning("Failed to load words " + err.message);
-          this.close();
+          this.$dialog.notify.warning('Failed to load words ' + err.message)
+          this.close()
         })
-        .then(async () => this.pagination());
+        .then(async () => this.pagination())
     },
-    toggleSort() {
-      this.asc = !this.asc;
+    toggleSort () {
+      this.asc = !this.asc
 
       this.originalWords.sort((a, b) =>
         this.asc ? a.Page - b.Page : b.Page - a.Page
-      );
-      console.log(this.originalWords);
+      )
+      console.log(this.originalWords)
     },
-    forceLock() {
-      this.aqquireLock(true);
+    forceLock () {
+      this.aqquireLock(true)
     },
-    aqquireLock(force) {
-      this.saving = true;
+    aqquireLock (force) {
+      this.saving = true
       return lock(this.file.path, force)
         .then(({ success }) => {
-          this.hasLock = success;
+          this.hasLock = success
         })
-        .catch((err) => {
-          this.hasLock = false;
-          this.$dialog.notify.warning("Unable to aquire lock: " + err.message);
+        .catch(err => {
+          this.hasLock = false
+          this.$dialog.notify.warning('Unable to aquire lock: ' + err.message)
         })
-        .finally((_) => {
-          this.saving = false;
-        });
+        .finally(_ => {
+          this.saving = false
+        })
     },
-    close() {
-      this.saving = true;
+    close () {
+      this.saving = true
       Promise.resolve(this.pending.length > 0)
-        .then((pending) => {
+        .then(pending => {
           if (pending) {
             return this.$dialog.confirm({
               text: `You have ${this.pending.length} unsaved items. You will loose your changes`,
-              title: "Are you sure?",
-            });
+              title: 'Are you sure?'
+            })
           }
 
-          return true;
+          return true
         })
-        .then(async (close) => {
+        .then(async close => {
           if (close && this.hasLock) {
-            return unlock(this.file.path).then((_) => true);
+            return unlock(this.file.path).then(_ => true)
           }
-          return close;
+          return close
         })
-        .then((close) => {
-          console.log("Released lock", close);
+        .then(close => {
+          console.log('Released lock', close)
           if (close) {
-            this.$emit("submit", { cancel: true });
-            this.isActive = false;
+            this.$emit('submit', { cancel: true })
+            this.isActive = false
           }
-        });
+        })
     },
-    saveWord(data) {
+    saveWord (data) {
       if (!this.editable) {
-        return;
+        return
       }
-      console.log(data);
-      this.pending.push(data);
+      console.log(data)
+      this.pending.push(data)
       // this.removeFromWords(data.word)
     },
-    undo() {
+    undo () {
       if (this.pending.length === 0) {
-        return;
+        return
       }
-      this.pending.pop();
+      this.pending.pop()
       // this.undoQueue.push()
     },
-    removeFromWords(word) {
-      const index = this.originalWords.indexOf(word);
+    removeFromWords (word) {
+      const index = this.originalWords.indexOf(word)
       if (index >= 0) {
-        this.originalWords.splice(index, 1);
+        this.originalWords.splice(index, 1)
       }
     },
-    save() {
-      this.saving = true;
+    save () {
+      this.saving = true
       hasLock(this.file.path)
-        .then((res) => {
+        .then(res => {
           if (res) {
-            return approveWords(this.file.path, this.pending);
+            return approveWords(this.file.path, this.pending)
           }
 
-          throw new Error("You do not have lock");
+          throw new Error('You do not have lock')
         })
-        .then((_) => {
-          this.$dialog.notify.success("Changes were succesfully saved");
-          this.pending = [];
+        .then(_ => {
+          this.$dialog.notify.success('Changes were succesfully saved')
+          this.pending = []
         })
         .then(this.init)
-        .catch((err) => {
-          this.$dialog.notify.error(err.message);
+        .catch(err => {
+          this.$dialog.notify.error(err.message)
         })
-        .finally((_) => {
-          this.saving = false;
-        });
+        .finally(_ => {
+          this.saving = false
+        })
     },
-    finalize() {
-      this.saving = true;
+    finalize () {
+      this.saving = true
       finalizeFile(this.file.path, this.file.extras)
-        .then((_) => {
-          this.close();
-          this.$dialog.notify.success("Changes were succesfully saved");
+        .then(_ => {
+          this.close()
+          this.$dialog.notify.success('Changes were succesfully saved')
         })
-        .catch((err) => {
-          this.$dialog.notify.error(err.message);
+        .catch(err => {
+          this.$dialog.notify.error(err.message)
         })
-        .finally((_) => {
-          this.saving = false;
-        });
+        .finally(_ => {
+          this.saving = false
+        })
     },
-    scroll($state) {
-      console.log("scroll");
-      this.max += 5;
+    scroll ($state) {
+      console.log('scroll')
+      this.max += 5
       if (this.max >= this.originalWords.length) {
-        $state.complete();
+        $state.complete()
       } else {
-        $state.loaded();
+        $state.loaded()
       }
     },
-    async edit(id) {
+    async edit (id) {
       const result = await this.$dialog.showAndWait(EditWord, {
-        word: id.text,
-      });
+        word: id.text
+      })
 
       if (result && !result.cancel) {
-        this.approve(id, result.update);
+        this.approve(id, result.update)
       }
     },
-    async approveAllDialog() {
-      this.saving = true;
-      const words = this.originalWords;
+    async approveAllDialog () {
+      this.saving = true
+      const words = this.originalWords
       const result = await this.$dialog.showAndWait(ApproveConfidence, {
-        confidence: 1,
-      });
+        confidence: 1
+      })
 
       if (result && !result.cancel) {
         const confidence = words.filter(
-          (w) => w.Confidence > result.confidence
-        );
-        console.log("Words above confidence", confidence);
+          w => w.Confidence > result.confidence
+        )
+        console.log('Words above confidence', confidence)
 
         const res = await this.$dialog.confirm({
           text: `Approve ${confidence.length} words above ${result.confidence}% confidence`,
-          title: "Are you sure?",
-        });
+          title: 'Are you sure?'
+        })
         if (res) {
-          confidence.forEach((w) => {
-            this.saveWord({ file: this.path, word: w, newWord: w.Text }); // .then(_ => this.removeFromWords(w))
-          });
-          this.save().then((_) => {
-            this.saving = false;
+          confidence.forEach(w => {
+            this.saveWord({ file: this.path, word: w, newWord: w.Text }) // .then(_ => this.removeFromWords(w))
+          })
+          this.save().then(_ => {
+            this.saving = false
             this.$dialog.notify.success(
               `Approved all words aboove set confidence`
-            );
-          });
+            )
+          })
         } else {
-          this.saving = false;
+          this.saving = false
         }
       } else {
-        this.saving = false;
+        this.saving = false
       }
     },
-    currnetPage() {
-      this.page = this.pageList[this.pageIndex];
+    currnetPage () {
+      this.page = this.pageList[this.pageIndex]
     },
-    pagination() {
-    
+    pagination () {
       for (;this.page <= this.pageLength; this.page++) {
-        
-      
-        if (this.words.length != 0) {
-         
-          this.pageList.push(this.page);
+        if (this.words.length !== 0) {
+          this.pageList.push(this.page)
         }
       }
-      this.currnetPage();
-    },
-  },
-};
+      this.currnetPage()
+    }
+  }
+}
 </script>
