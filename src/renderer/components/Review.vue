@@ -403,6 +403,7 @@ export default {
       }
     },
     pagination() {
+      this.page = 1;
       this.pageList = [];
       this.pageKey = this.pageKey + 1;
       for (; this.page <= this.pageLength; this.page++) {
