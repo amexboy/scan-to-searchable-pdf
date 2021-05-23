@@ -23,7 +23,7 @@
           :disabled="!editable"
           @click="approveAllDialog"
         >
-          <v-icon v-text="'mdi-check-all'" /> &nbsp; Bulk Approveww
+          <v-icon v-text="'mdi-check-all'" /> &nbsp; Bulk Approve
         </v-btn>
         <v-btn
           v-if="canEdit && done && pending.length === 0"
@@ -109,12 +109,11 @@
         prev-icon="mdi-arrow-left"
       >
         <v-bottom-navigation
-          v-model="pageIndex"
+          v-model="page"
           color="primary"
-          @change="currnetPage"
           :key="pageKey"
         >
-          <v-btn v-for="pageNumber in pageList" :key="pageNumber">
+          <v-btn v-for="pageNumber in pageList" :key="pageNumber" :value="pageNumber">
             <h1>{{ pageNumber }}</h1>
           </v-btn>
         </v-bottom-navigation>
@@ -152,11 +151,10 @@ export default {
   data() {
     return {
       asc: true,
-      page: 1,
+      page:1,
       pageLength: 0,
       pageKey: 1,
       pageList: [],
-      pageIndex: 0,
       originalWords: [],
       corrections: [],
       cacheFile: null,
@@ -204,7 +202,8 @@ export default {
     },
     canEdit() {
       return this.editable && this.hasLock;
-    },
+    }
+     
   },
   mounted() {
     this.init();
@@ -306,7 +305,7 @@ export default {
         return;
       }
       this.pending.pop();
-      this.pagination();
+       this.pagination();
       // this.undoQueue.push()
     },
     removeFromWords(word) {
@@ -403,11 +402,7 @@ export default {
         this.saving = false;
       }
     },
-    currnetPage() {
-      this.page = this.pageList[this.pageIndex];
-    },
     pagination() {
-      this.page = 1;
       this.pageList = [];
       this.pageKey = this.pageKey + 1;
       for (; this.page <= this.pageLength; this.page++) {
@@ -415,8 +410,7 @@ export default {
           this.pageList.push(this.page);
         }
       }
-      this.currnetPage();
-    },
+    },   
   },
 };
 </script>
