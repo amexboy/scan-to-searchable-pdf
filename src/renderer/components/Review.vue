@@ -89,7 +89,7 @@
               :editable="canEdit"
               :word="word"
               :path="file.path"
-              :cache-file="cacheFile"
+              :pdf="pdf"
               @save="saveWord"
             />
           </v-card>
@@ -130,6 +130,7 @@ import ApproveConfidence from '@/components/ApproveConfidence.vue'
 import { splitPath } from '@/scripts/utils'
 import InfiniteLoading from 'vue-infinite-loading'
 import PdfVue from '@/components/PdfVue.vue'
+const pdfjsLib = require('pdfjs-dist')
 
 export default {
   components: { PdfVue, InfiniteLoading },
@@ -152,13 +153,13 @@ export default {
       pageIndex: 0,
       originalWords: [],
       corrections: [],
-      cacheFile: null,
       isActive: false,
       autosave: false,
       saving: false,
       ready: false,
       pending: [],
       hasLock: false,
+      pdf: null,
       view: 6,
       max: 5,
       search: '',
@@ -226,7 +227,11 @@ export default {
           this.corrections = res.corrections
           this.originalWords = res.words
           this.pageLength = res.words[res.words.length - 1].Page
-          this.cacheFile = res.cacheFile
+
+          const fileUrl = `file://${res.cacheFile || this.file.path}`
+          const loadingTask = pdfjsLib.getDocument(fileUrl)
+          this.pdf = await loadingTask.promise
+
           this.ready = true
         })
         .catch(err => {
@@ -242,7 +247,7 @@ export default {
       this.originalWords.sort((a, b) =>
         this.asc ? a.Page - b.Page : b.Page - a.Page
       )
-      console.log(this.originalWords)
+      console.log(`Sorted words in ${this.asc ? 'Ascending' : 'Decending'} Order`)
     },
     forceLock () {
       this.aqquireLock(true)
@@ -294,14 +299,12 @@ export default {
       }
       console.log(data)
       this.pending.push(data)
-      // this.removeFromWords(data.word)
     },
     undo () {
       if (this.pending.length === 0) {
         return
       }
       this.pending.pop()
-      // this.undoQueue.push()
     },
     removeFromWords (word) {
       const index = this.originalWords.indexOf(word)
