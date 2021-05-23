@@ -107,8 +107,8 @@
         next-icon="mdi-arrow-right"
         prev-icon="mdi-arrow-left"
       >
-        <v-bottom-navigation :value="pageIndex" color="primary">
-          <v-btn v-for="pageNumber in pageList" :key="pageNumber" @click="currnetPage()">
+        <v-bottom-navigation v-model="page" color="primary">
+          <v-btn v-for="pageNumber in pageList" :key="pageNumber" :value="pageNumber">
             <h1>{{ pageNumber }}</h1>
           </v-btn>
         </v-bottom-navigation>
@@ -148,7 +148,7 @@ export default {
       asc: true,
       page: 1,
       pageLength: 0,
-      pageList: [],
+      // pageList: [],
       pageIndex: 0,
       originalWords: [],
       corrections: [],
@@ -170,14 +170,19 @@ export default {
     }
   },
   computed: {
+    pageList () {
+      return new Set(this.visibleWords.map(w => w.Page))
+    },
     words () {
-      return this.originalWords
-        .filter(w => !w.removed)
+      return this.visibleWords
         .filter(w => w.Page === this.page)
-        .filter(w => !this.hideWordIds.includes(w.Id))
         .slice(0, this.max)
     },
-
+    visibleWords () {
+      return this.originalWords
+        .filter(w => !w.removed)
+        .filter(w => !this.hideWordIds.includes(w.Id))
+    },
     hideWordIds () {
       return [...this.correctionsIds, ...this.pendingWordIds]
     },
@@ -230,7 +235,6 @@ export default {
           this.$dialog.notify.warning('Failed to load words ' + err.message)
           this.close()
         })
-        .then(async () => this.pagination())
     },
     toggleSort () {
       this.asc = !this.asc
@@ -392,17 +396,6 @@ export default {
       } else {
         this.saving = false
       }
-    },
-    currnetPage () {
-      this.page = this.pageList[this.pageIndex]
-    },
-    pagination () {
-      for (;this.page <= this.pageLength; this.page++) {
-        if (this.words.length !== 0) {
-          this.pageList.push(this.page)
-        }
-      }
-      this.currnetPage()
     }
   }
 }
