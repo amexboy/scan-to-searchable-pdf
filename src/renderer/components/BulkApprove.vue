@@ -132,7 +132,7 @@ export default {
             })
             .then(async _ => {
               this.$set(this.finalStatus, f.path, { finished: false, status: 'Lock Acquired' })
-              const flags = await getFlaggedWords(f.path)
+              const flags = await getFlaggedWords(f.path, f.extras.originalPath)
               const filtered = flags.words.filter(f => f.Confidence > this.confidence)
               this.numberOfWords[f.path] = flags.words.length
 

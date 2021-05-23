@@ -63,5 +63,8 @@ module.exports = {
         }
       }
     }
+  },
+  build: {
+    publicPath: './_nuxt'
   }
 }

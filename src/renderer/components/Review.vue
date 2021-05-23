@@ -11,9 +11,6 @@
         <v-btn text small :disabled="pending.length == 0" @click="undo">
           <v-icon color="primary" v-text="'mdi-undo'" />
         </v-btn>
-        <!-- <v-btn text small>
-          <v-icon v-text="'mdi-reload'" />
-        </v-btn> -->
         <v-spacer />
         <v-btn
           v-if="canEdit && !done"
@@ -125,7 +122,6 @@ import {
   unlock,
   finalizeFile
 } from '@/scripts/reviews'
-import EditWord from '@/components/EditWord.vue'
 import ApproveConfidence from '@/components/ApproveConfidence.vue'
 import { splitPath } from '@/scripts/utils'
 import InfiniteLoading from 'vue-infinite-loading'
@@ -306,12 +302,6 @@ export default {
       }
       this.pending.pop()
     },
-    removeFromWords (word) {
-      const index = this.originalWords.indexOf(word)
-      if (index >= 0) {
-        this.originalWords.splice(index, 1)
-      }
-    },
     save () {
       this.saving = true
       hasLock(this.file.path)
@@ -355,15 +345,6 @@ export default {
         $state.complete()
       } else {
         $state.loaded()
-      }
-    },
-    async edit (id) {
-      const result = await this.$dialog.showAndWait(EditWord, {
-        word: id.text
-      })
-
-      if (result && !result.cancel) {
-        this.approve(id, result.update)
       }
     },
     async approveAllDialog () {
