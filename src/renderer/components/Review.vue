@@ -20,7 +20,7 @@
           :disabled="!editable"
           @click="approveAllDialog"
         >
-          <v-icon v-text="'mdi-check-all'" /> &nbsp; Bulk Approveww
+          <v-icon v-text="'mdi-check-all'" /> &nbsp; Bulk Approvew
         </v-btn>
         <v-btn
           v-if="canEdit && done && pending.length === 0"
@@ -96,7 +96,7 @@
         </v-col>
       </v-row>
     </v-card-text>
-    <v-card>
+    <v-card-actions class="elevation-5">
       <v-tabs
         background-color="transparent"
         show-arrows
@@ -105,12 +105,17 @@
         prev-icon="mdi-arrow-left"
       >
         <v-bottom-navigation v-model="page" color="primary">
-          <v-btn v-for="pageNumber in pageList" :key="pageNumber" :value="pageNumber">
-            <h1>{{ pageNumber }}</h1>
+          <v-btn v-for="pageNumber in pageList" :key="pageNumber" large :value="pageNumber">
+            <v-badge color="green"
+                     :content="pages[pageNumber]"
+                     class="subtitle-1"
+            >
+              {{ pageNumber }}
+            </v-badge>
           </v-btn>
         </v-bottom-navigation>
       </v-tabs>
-    </v-card>
+    </v-card-actions>
   </v-card>
 </template>
 <script>
@@ -144,9 +149,6 @@ export default {
     return {
       asc: true,
       page: 1,
-      pageLength: 0,
-      // pageList: [],
-      pageIndex: 0,
       originalWords: [],
       corrections: [],
       isActive: false,
@@ -167,12 +169,20 @@ export default {
     }
   },
   computed: {
+    pages () {
+      const pages = this.visibleWords.reduce((result, w) => {
+        result[w.Page] = result[w.Page] || 0
+        result[w.Page]++
+        return result
+      }, {})
+      return pages
+    },
     pageList () {
-      return new Set(this.visibleWords.map(w => w.Page))
+      return Object.keys(this.pages)
     },
     words () {
       return this.visibleWords
-        .filter(w => w.Page === this.page)
+        .filter(w => `${w.Page}` === this.page)
         .slice(0, this.max)
     },
     visibleWords () {
@@ -202,7 +212,6 @@ export default {
   mounted () {
     this.init()
   },
-
   methods: {
     init () {
       const init = this.editable
@@ -222,7 +231,6 @@ export default {
           )
           this.corrections = res.corrections
           this.originalWords = res.words
-          this.pageLength = res.words[res.words.length - 1].Page
 
           const fileUrl = `file://${res.cacheFile || this.file.path}`
           const loadingTask = pdfjsLib.getDocument(fileUrl)
@@ -339,7 +347,6 @@ export default {
         })
     },
     scroll ($state) {
-      console.log('scroll')
       this.max += 5
       if (this.max >= this.originalWords.length) {
         $state.complete()
