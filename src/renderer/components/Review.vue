@@ -95,8 +95,6 @@
           <infinite-loading @infinite="scroll" />
         </v-col>
       </v-row>
-    </v-card-text>
-    <v-card-actions class="elevation-5">
       <v-tabs
         background-color="transparent"
         show-arrows
@@ -115,7 +113,7 @@
           </v-btn>
         </v-bottom-navigation>
       </v-tabs>
-    </v-card-actions>
+    </v-card-text>
   </v-card>
 </template>
 <script>
@@ -175,7 +173,7 @@ export default {
     },
     words () {
       return this.visibleWords
-        .filter(w => `${w.Page}` === this.page)
+        .filter(w => `${w.Page}` === `${this.page}`)
         .slice(0, this.max)
     },
     visibleWords () {
@@ -340,7 +338,7 @@ export default {
         })
     },
     scroll ($state) {
-      this.max += 5
+      this.max += 2
       if (this.max >= this.originalWords.length) {
         $state.complete()
       } else {

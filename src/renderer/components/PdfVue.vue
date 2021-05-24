@@ -33,7 +33,7 @@
         />
       </v-col>
       <v-col cols="12" xs="12">
-        <canvas ref="pdf" style="max-width: 100%; height: 250px; max-height: 500px" />
+        <canvas ref="pdf" style="max-width: 100%; max-height: 500px" />
       </v-col>
     </v-row>
   </v-card>
