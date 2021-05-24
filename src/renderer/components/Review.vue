@@ -96,35 +96,49 @@
         </v-col>
       </v-row>
     </v-card-text>
-    <v-card-actions class="elevation-5">
-      <v-tabs
-        background-color="transparent"
-        show-arrows
-        color="primary"
-        next-icon="mdi-arrow-right"
-        prev-icon="mdi-arrow-left"
-      >
+
+    <v-tabs
+      background-color="transparent"
+      show-arrows
+      color="primary"
+      next-icon="mdi-arrow-right"
+      prev-icon="mdi-arrow-left"
+    >
+      <v-card-actions class="elevation-5">
         <v-bottom-navigation v-model="page" color="primary">
-          <v-btn v-for="pageNumber in pageList" :key="pageNumber" large :value="pageNumber">
-            <v-badge color="green"
-                     :content="pages[pageNumber]"
-                     class="subtitle-1"
+          <v-btn
+            v-for="pageNumber in pageList"
+            :key="pageNumber"
+            large
+            :value="pageNumber"
+          >
+            <v-badge
+              color="green"
+              :content="pages[pageNumber]"
+              class="subtitle-1"
             >
               {{ pageNumber }}
             </v-badge>
           </v-btn>
         </v-bottom-navigation>
-      </v-tabs>
-    </v-card-actions>
+      </v-card-actions>
+    </v-tabs>
   </v-card>
 </template>
 <script>
-import { hasLock, lock, approveWords, getFlaggedWords, unlock, finalizeFile } from '@/scripts/reviews'
-import ApproveConfidence from '@/components/ApproveConfidence.vue'
-import { splitPath } from '@/scripts/utils'
-import InfiniteLoading from 'vue-infinite-loading'
-import PdfVue from '@/components/PdfVue.vue'
-const pdfjsLib = require('pdfjs-dist')
+import {
+  hasLock,
+  lock,
+  approveWords,
+  getFlaggedWords,
+  unlock,
+  finalizeFile,
+} from "@/scripts/reviews";
+import ApproveConfidence from "@/components/ApproveConfidence.vue";
+import { splitPath } from "@/scripts/utils";
+import InfiniteLoading from "vue-infinite-loading";
+import PdfVue from "@/components/PdfVue.vue";
+const pdfjsLib = require("pdfjs-dist");
 
 export default {
   components: { PdfVue, InfiniteLoading },
@@ -132,13 +146,13 @@ export default {
     file: {
       type: Object,
       require: true,
-      default: () => ({ words: [] })
+      default: () => ({ words: [] }),
     },
     editable: {
-      type: Boolean
-    }
+      type: Boolean,
+    },
   },
-  data () {
+  data() {
     return {
       asc: true,
       page: 1,
@@ -153,235 +167,237 @@ export default {
       pdf: null,
       view: 6,
       max: 5,
-      search: '',
+      search: "",
       headers: [
-        { text: 'File Name', value: 'name' },
-        { text: 'Flagged Words', value: 'wordsCount' },
-        { text: 'Actions', value: 'actions', sortable: false }
-      ]
-    }
+        { text: "File Name", value: "name" },
+        { text: "Flagged Words", value: "wordsCount" },
+        { text: "Actions", value: "actions", sortable: false },
+      ],
+    };
   },
   computed: {
-    pages () {
+    pages() {
       const pages = this.visibleWords.reduce((result, w) => {
-        result[w.Page] = result[w.Page] || 0
-        result[w.Page]++
-        return result
-      }, {})
-      return pages
+        result[w.Page] = result[w.Page] || 0;
+        result[w.Page]++;
+        return result;
+      }, {});
+      return pages;
     },
-    pageList () {
-      return Object.keys(this.pages)
+    pageList() {
+      return Object.keys(this.pages);
     },
-    words () {
+    words() {
       return this.visibleWords
-        .filter(w => `${w.Page}` === this.page)
-        .slice(0, this.max)
+        .filter((w) => `${w.Page}` === this.page)
+        .slice(0, this.max);
     },
-    visibleWords () {
+    visibleWords() {
       return this.originalWords
-        .filter(w => !w.removed)
-        .filter(w => !this.hideWordIds.includes(w.Id))
+        .filter((w) => !w.removed)
+        .filter((w) => !this.hideWordIds.includes(w.Id));
     },
-    hideWordIds () {
-      return [...this.correctionsIds, ...this.pendingWordIds]
+    hideWordIds() {
+      return [...this.correctionsIds, ...this.pendingWordIds];
     },
-    pendingWordIds () {
-      return this.pending.map(w => w.word.Id)
+    pendingWordIds() {
+      return this.pending.map((w) => w.word.Id);
     },
-    correctionsIds () {
-      return this.corrections.map(c => c.wordId)
+    correctionsIds() {
+      return this.corrections.map((c) => c.wordId);
     },
-    parents () {
-      return this.file.path ? splitPath(this.file.path, true) : []
+    parents() {
+      return this.file.path ? splitPath(this.file.path, true) : [];
     },
-    done () {
-      return this.ready && this.words.length === 0
+    done() {
+      return this.ready && this.words.length === 0;
     },
-    canEdit () {
-      return this.editable && this.hasLock
-    }
+    canEdit() {
+      return this.editable && this.hasLock;
+    },
   },
-  mounted () {
-    this.init()
+  mounted() {
+    this.init();
   },
   methods: {
-    init () {
+    init() {
       const init = this.editable
         ? this.aqquireLock(false)
-        : Promise.resolve(false)
-      this.ready = false
+        : Promise.resolve(false);
+      this.ready = false;
       init
         .then(async () => {
           const res = await getFlaggedWords(
             this.file.path,
             this.file.extras.originalPath
-          )
+          );
           console.log(
-            'Flagged words and corrections for file ',
+            "Flagged words and corrections for file ",
             this.file.path,
             res
-          )
-          this.corrections = res.corrections
-          this.originalWords = res.words
+          );
+          this.corrections = res.corrections;
+          this.originalWords = res.words;
 
-          const fileUrl = `file://${res.cacheFile || this.file.path}`
-          const loadingTask = pdfjsLib.getDocument(fileUrl)
-          this.pdf = await loadingTask.promise
+          const fileUrl = `file://${res.cacheFile || this.file.path}`;
+          const loadingTask = pdfjsLib.getDocument(fileUrl);
+          this.pdf = await loadingTask.promise;
 
-          this.ready = true
+          this.ready = true;
         })
-        .catch(err => {
-          console.log('Error loading', err)
+        .catch((err) => {
+          console.log("Error loading", err);
 
-          this.$dialog.notify.warning('Failed to load words ' + err.message)
-          this.close()
-        })
+          this.$dialog.notify.warning("Failed to load words " + err.message);
+          this.close();
+        });
     },
-    toggleSort () {
-      this.asc = !this.asc
+    toggleSort() {
+      this.asc = !this.asc;
 
       this.originalWords.sort((a, b) =>
         this.asc ? a.Page - b.Page : b.Page - a.Page
-      )
-      console.log(`Sorted words in ${this.asc ? 'Ascending' : 'Decending'} Order`)
+      );
+      console.log(
+        `Sorted words in ${this.asc ? "Ascending" : "Decending"} Order`
+      );
     },
-    forceLock () {
-      this.aqquireLock(true)
+    forceLock() {
+      this.aqquireLock(true);
     },
-    aqquireLock (force) {
-      this.saving = true
+    aqquireLock(force) {
+      this.saving = true;
       return lock(this.file.path, force)
         .then(({ success }) => {
-          this.hasLock = success
+          this.hasLock = success;
         })
-        .catch(err => {
-          this.hasLock = false
-          this.$dialog.notify.warning('Unable to aquire lock: ' + err.message)
+        .catch((err) => {
+          this.hasLock = false;
+          this.$dialog.notify.warning("Unable to aquire lock: " + err.message);
         })
-        .finally(_ => {
-          this.saving = false
-        })
+        .finally((_) => {
+          this.saving = false;
+        });
     },
-    close () {
-      this.saving = true
+    close() {
+      this.saving = true;
       Promise.resolve(this.pending.length > 0)
-        .then(pending => {
+        .then((pending) => {
           if (pending) {
             return this.$dialog.confirm({
               text: `You have ${this.pending.length} unsaved items. You will loose your changes`,
-              title: 'Are you sure?'
-            })
+              title: "Are you sure?",
+            });
           }
 
-          return true
+          return true;
         })
-        .then(async close => {
+        .then(async (close) => {
           if (close && this.hasLock) {
-            return unlock(this.file.path).then(_ => true)
+            return unlock(this.file.path).then((_) => true);
           }
-          return close
+          return close;
         })
-        .then(close => {
-          console.log('Released lock', close)
+        .then((close) => {
+          console.log("Released lock", close);
           if (close) {
-            this.$emit('submit', { cancel: true })
-            this.isActive = false
+            this.$emit("submit", { cancel: true });
+            this.isActive = false;
           }
-        })
+        });
     },
-    saveWord (data) {
+    saveWord(data) {
       if (!this.editable) {
-        return
+        return;
       }
-      console.log(data)
-      this.pending.push(data)
+      console.log(data);
+      this.pending.push(data);
     },
-    undo () {
+    undo() {
       if (this.pending.length === 0) {
-        return
+        return;
       }
-      this.pending.pop()
+      this.pending.pop();
     },
-    save () {
-      this.saving = true
+    save() {
+      this.saving = true;
       hasLock(this.file.path)
-        .then(res => {
+        .then((res) => {
           if (res) {
-            return approveWords(this.file.path, this.pending)
+            return approveWords(this.file.path, this.pending);
           }
 
-          throw new Error('You do not have lock')
+          throw new Error("You do not have lock");
         })
-        .then(_ => {
-          this.$dialog.notify.success('Changes were succesfully saved')
-          this.pending = []
+        .then((_) => {
+          this.$dialog.notify.success("Changes were succesfully saved");
+          this.pending = [];
         })
         .then(this.init)
-        .catch(err => {
-          this.$dialog.notify.error(err.message)
+        .catch((err) => {
+          this.$dialog.notify.error(err.message);
         })
-        .finally(_ => {
-          this.saving = false
-        })
+        .finally((_) => {
+          this.saving = false;
+        });
     },
-    finalize () {
-      this.saving = true
+    finalize() {
+      this.saving = true;
       finalizeFile(this.file.path, this.file.extras)
-        .then(_ => {
-          this.close()
-          this.$dialog.notify.success('Changes were succesfully saved')
+        .then((_) => {
+          this.close();
+          this.$dialog.notify.success("Changes were succesfully saved");
         })
-        .catch(err => {
-          this.$dialog.notify.error(err.message)
+        .catch((err) => {
+          this.$dialog.notify.error(err.message);
         })
-        .finally(_ => {
-          this.saving = false
-        })
+        .finally((_) => {
+          this.saving = false;
+        });
     },
-    scroll ($state) {
-      this.max += 5
+    scroll($state) {
+      this.max += 5;
       if (this.max >= this.originalWords.length) {
-        $state.complete()
+        $state.complete();
       } else {
-        $state.loaded()
+        $state.loaded();
       }
     },
-    async approveAllDialog () {
-      this.saving = true
-      const words = this.originalWords
+    async approveAllDialog() {
+      this.saving = true;
+      const words = this.originalWords;
       const result = await this.$dialog.showAndWait(ApproveConfidence, {
-        confidence: 1
-      })
+        confidence: 1,
+      });
 
       if (result && !result.cancel) {
         const confidence = words.filter(
-          w => w.Confidence > result.confidence
-        )
-        console.log('Words above confidence', confidence)
+          (w) => w.Confidence > result.confidence
+        );
+        console.log("Words above confidence", confidence);
 
         const res = await this.$dialog.confirm({
           text: `Approve ${confidence.length} words above ${result.confidence}% confidence`,
-          title: 'Are you sure?'
-        })
+          title: "Are you sure?",
+        });
         if (res) {
-          confidence.forEach(w => {
-            this.saveWord({ file: this.path, word: w, newWord: w.Text }) // .then(_ => this.removeFromWords(w))
-          })
+          confidence.forEach((w) => {
+            this.saveWord({ file: this.path, word: w, newWord: w.Text }); // .then(_ => this.removeFromWords(w))
+          });
 
-          this.save().then(_ => {
-            this.saving = false
+          this.save().then((_) => {
+            this.saving = false;
             this.$dialog.notify.success(
               `Approved all words aboove set confidence`
-            )
-          })
+            );
+          });
         } else {
-          this.saving = false
+          this.saving = false;
         }
       } else {
-        this.saving = false
+        this.saving = false;
       }
-    }
-  }
-}
+    },
+  },
+};
 </script>
