@@ -97,7 +97,7 @@ export default {
       // Apply page dimensions to the <canvas> element.
       const canvas = this.$refs.pdf
       const context = canvas.getContext('2d')
-      canvas.height = viewport.height * Height + 500
+      canvas.height = viewport.height * Height + 200
       canvas.width = viewport.width
 
       // Render the page into the <canvas> element.
@@ -108,7 +108,7 @@ export default {
 
       context.imageSmoothingEnabled = false
       // context.scale(scale, scale)
-      context.translate(0, 250 - viewport.height * Top)
+      context.translate(0, 100 - viewport.height * Top)
       await page.render(renderContext).promise.then(_ => {
         context.fillStyle = '#FCDB03A2'
         context.fillRect(
