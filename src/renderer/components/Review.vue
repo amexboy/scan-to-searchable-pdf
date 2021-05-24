@@ -11,26 +11,38 @@
         <v-btn text small :disabled="pending.length == 0" @click="undo">
           <v-icon color="primary" v-text="'mdi-undo'" />
         </v-btn>
-        <!-- <v-btn text small>
-          <v-icon v-text="'mdi-reload'" />
-        </v-btn> -->
         <v-spacer />
-        <v-btn v-if="canEdit && !done" text small color="green" :disabled="!editable" @click="approveAllDialog">
-          <v-icon v-text="'mdi-check-all'" /> &nbsp; Bulk Approve
+        <v-btn
+          v-if="canEdit && !done"
+          text
+          small
+          color="green"
+          :disabled="!editable"
+          @click="approveAllDialog"
+        >
+          <v-icon v-text="'mdi-check-all'" /> &nbsp; Bulk Approvew
         </v-btn>
-        <v-btn v-if="canEdit && done && pending.length === 0"
-               small text :loading="saving" @click="finalize"
+        <v-btn
+          v-if="canEdit && done && pending.length === 0"
+          small
+          text
+          :loading="saving"
+          @click="finalize"
         >
           <v-icon v-text="'mdi-check-all'" /> &nbsp; Finalize
         </v-btn>
-        <v-btn v-if="ready && editable && !hasLock" text small color="red"
-               @click="forceLock"
+        <v-btn
+          v-if="ready && editable && !hasLock"
+          text
+          small
+          color="red"
+          @click="forceLock"
         >
           <v-icon v-text="'mdi-lock-open'" /> &nbsp; Force Acquire Lock
         </v-btn>
         <v-spacer />
         <v-btn text small @click="toggleSort">
-          <v-icon v-text="asc?'mdi-arrow-down':'mdi-arrow-up'" />
+          <v-icon v-text="asc ? 'mdi-arrow-down' : 'mdi-arrow-up'" />
         </v-btn>
         <v-btn-toggle v-model="view" mandatory>
           <v-btn text small value="12">
@@ -42,7 +54,7 @@
         </v-btn-toggle>
       </v-row>
     </v-toolbar>
-    <v-card-text v-if="!ready ">
+    <v-card-text v-if="!ready">
       Please wait while the necessary data is loaded
     </v-card-text>
     <v-card-text v-else-if="canEdit && done && pending.length > 0">
@@ -50,7 +62,9 @@
         {{ pending.length }} flagged words waiting saved. Save?
       </v-row>
       <v-row justify="center">
-        <v-btn small text @click="save"><v-icon v-text="'mdi-content-save'" /> &nbsp; Save </v-btn>
+        <v-btn small text @click="save">
+          <v-icon v-text="'mdi-content-save'" /> &nbsp; Save
+        </v-btn>
       </v-row>
     </v-card-text>
     <v-card-text v-else-if="canEdit && done && pending.length === 0">
@@ -58,9 +72,7 @@
         You have reviewed all flagged words. Proceed to re-generate the file?
       </v-row>
       <v-row justify="center">
-        <v-btn small text :loading="saving"
-               @click="finalize"
-        >
+        <v-btn small text :loading="saving" @click="finalize">
           <v-icon v-text="'mdi-check-all'" /> &nbsp; Finalize
         </v-btn>
       </v-row>
@@ -69,26 +81,57 @@
       <v-row style="max-height: 500px; overflow-y: scroll">
         <v-col v-for="word in words" :key="word.Id" cols="12" :sm="view">
           <v-card>
-            <pdf-vue :key="word.Id" :editable="canEdit" :word="word"
-                     :path="file.path" :cache-file="cacheFile" @save="saveWord"
+            <pdf-vue
+              :key="word.Id"
+              :editable="canEdit"
+              :word="word"
+              :path="file.path"
+              :pdf="pdf"
+              @save="saveWord"
             />
           </v-card>
         </v-col>
-
         <v-col>
           <infinite-loading @infinite="scroll" />
         </v-col>
       </v-row>
     </v-card-text>
+    <v-card-actions class="elevation-5">
+      <v-tabs
+        background-color="transparent"
+        show-arrows
+        color="primary"
+        next-icon="mdi-arrow-right"
+        prev-icon="mdi-arrow-left"
+      >
+        <v-bottom-navigation v-model="page" color="primary">
+          <v-btn v-for="pageNumber in pageList" :key="pageNumber" large :value="pageNumber">
+            <v-badge color="green"
+                     :content="pages[pageNumber]"
+                     class="subtitle-1"
+            >
+              {{ pageNumber }}
+            </v-badge>
+          </v-btn>
+        </v-bottom-navigation>
+      </v-tabs>
+    </v-card-actions>
   </v-card>
 </template>
 <script>
-import { hasLock, lock, approveWords, getFlaggedWords, unlock, finalizeFile } from '@/scripts/reviews'
-import EditWord from '@/components/EditWord.vue'
+import {
+  hasLock,
+  lock,
+  approveWords,
+  getFlaggedWords,
+  unlock,
+  finalizeFile
+} from '@/scripts/reviews'
 import ApproveConfidence from '@/components/ApproveConfidence.vue'
 import { splitPath } from '@/scripts/utils'
 import InfiniteLoading from 'vue-infinite-loading'
 import PdfVue from '@/components/PdfVue.vue'
+const pdfjsLib = require('pdfjs-dist')
 
 export default {
   components: { PdfVue, InfiniteLoading },
@@ -105,30 +148,47 @@ export default {
   data () {
     return {
       asc: true,
+      page: 1,
       originalWords: [],
       corrections: [],
-      cacheFile: null,
       isActive: false,
       autosave: false,
       saving: false,
       ready: false,
       pending: [],
       hasLock: false,
+      pdf: null,
       view: 6,
       max: 5,
       search: '',
-      headers: [{ text: 'File Name', value: 'name' },
+      headers: [
+        { text: 'File Name', value: 'name' },
         { text: 'Flagged Words', value: 'wordsCount' },
         { text: 'Actions', value: 'actions', sortable: false }
       ]
     }
   },
   computed: {
+    pages () {
+      const pages = this.visibleWords.reduce((result, w) => {
+        result[w.Page] = result[w.Page] || 0
+        result[w.Page]++
+        return result
+      }, {})
+      return pages
+    },
+    pageList () {
+      return Object.keys(this.pages)
+    },
     words () {
+      return this.visibleWords
+        .filter(w => `${w.Page}` === this.page)
+        .slice(0, this.max)
+    },
+    visibleWords () {
       return this.originalWords
         .filter(w => !w.removed)
         .filter(w => !this.hideWordIds.includes(w.Id))
-        .slice(0, this.max)
     },
     hideWordIds () {
       return [...this.correctionsIds, ...this.pendingWordIds]
@@ -154,16 +214,30 @@ export default {
   },
   methods: {
     init () {
-      const init = this.editable ? this.aqquireLock(false) : Promise.resolve(false)
+      const init = this.editable
+        ? this.aqquireLock(false)
+        : Promise.resolve(false)
       this.ready = false
-      init.then(async () => {
-        const res = await getFlaggedWords(this.file.path, this.file.extras.originalPath)
-        console.log('Flagged words and corrections for file ', this.file.path, res)
-        this.corrections = res.corrections
-        this.originalWords = res.words
-        this.cacheFile = res.cacheFile
-        this.ready = true
-      })
+      init
+        .then(async () => {
+          const res = await getFlaggedWords(
+            this.file.path,
+            this.file.extras.originalPath
+          )
+          console.log(
+            'Flagged words and corrections for file ',
+            this.file.path,
+            res
+          )
+          this.corrections = res.corrections
+          this.originalWords = res.words
+
+          const fileUrl = `file://${res.cacheFile || this.file.path}`
+          const loadingTask = pdfjsLib.getDocument(fileUrl)
+          this.pdf = await loadingTask.promise
+
+          this.ready = true
+        })
         .catch(err => {
           console.log('Error loading', err)
 
@@ -174,8 +248,10 @@ export default {
     toggleSort () {
       this.asc = !this.asc
 
-      this.originalWords.sort((a, b) => this.asc ? a.Page - b.Page : b.Page - a.Page)
-      console.log(this.originalWords)
+      this.originalWords.sort((a, b) =>
+        this.asc ? a.Page - b.Page : b.Page - a.Page
+      )
+      console.log(`Sorted words in ${this.asc ? 'Ascending' : 'Decending'} Order`)
     },
     forceLock () {
       this.aqquireLock(true)
@@ -227,20 +303,12 @@ export default {
       }
       console.log(data)
       this.pending.push(data)
-      // this.removeFromWords(data.word)
     },
     undo () {
       if (this.pending.length === 0) {
         return
       }
       this.pending.pop()
-      // this.undoQueue.push()
-    },
-    removeFromWords (word) {
-      const index = this.originalWords.indexOf(word)
-      if (index >= 0) {
-        this.originalWords.splice(index, 1)
-      }
     },
     save () {
       this.saving = true
@@ -279,7 +347,6 @@ export default {
         })
     },
     scroll ($state) {
-      console.log('scroll')
       this.max += 5
       if (this.max >= this.originalWords.length) {
         $state.complete()
@@ -287,20 +354,17 @@ export default {
         $state.loaded()
       }
     },
-    async edit (id) {
-      const result = await this.$dialog.showAndWait(EditWord, { word: id.text })
-
-      if (result && !result.cancel) {
-        this.approve(id, result.update)
-      }
-    },
     async approveAllDialog () {
       this.saving = true
       const words = this.originalWords
-      const result = await this.$dialog.showAndWait(ApproveConfidence, { confidence: 1 })
+      const result = await this.$dialog.showAndWait(ApproveConfidence, {
+        confidence: 1
+      })
 
       if (result && !result.cancel) {
-        const confidence = words.filter(w => w.Confidence > result.confidence)
+        const confidence = words.filter(
+          w => w.Confidence > result.confidence
+        )
         console.log('Words above confidence', confidence)
 
         const res = await this.$dialog.confirm({
@@ -309,13 +373,14 @@ export default {
         })
         if (res) {
           confidence.forEach(w => {
-            this.saveWord({ file: this.path, word: w, newWord: w.Text })// .then(_ => this.removeFromWords(w))
+            this.saveWord({ file: this.path, word: w, newWord: w.Text }) // .then(_ => this.removeFromWords(w))
           })
-          this.save()
-            .then(_ => {
-              this.saving = false
-              this.$dialog.notify.success(`Approved all words aboove set confidence`)
-            })
+          this.save().then(_ => {
+            this.saving = false
+            this.$dialog.notify.success(
+              `Approved all words aboove set confidence`
+            )
+          })
         } else {
           this.saving = false
         }

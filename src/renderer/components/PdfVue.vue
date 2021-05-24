@@ -33,13 +33,12 @@
         />
       </v-col>
       <v-col cols="12" xs="12">
-        <canvas ref="pdf" style="max-width: 100%; max-height: 500px" />
+        <canvas ref="pdf" style="max-width: 100%; height: 250px; max-height: 500px" />
       </v-col>
     </v-row>
   </v-card>
 </template>
 <script>
-const pdfjsLib = require('pdfjs-dist')
 
 export default {
   props: {
@@ -47,6 +46,10 @@ export default {
       type: String,
       require: true,
       default: ''
+    },
+    pdf: {
+      type: Object,
+      required: true
     },
     word: {
       type: Object,
@@ -59,11 +62,6 @@ export default {
     },
     editable: {
       type: Boolean
-    },
-    cacheFile: {
-      type: String,
-      required: false,
-      default: null
     }
   },
   data () {
@@ -73,30 +71,20 @@ export default {
       newWord: this.word.Text
     }
   },
-  computed: {
-    file () {
-      if (!this.path) return undefined
-
-      return `file://${this.cacheFile || this.path}`
-    }
-  },
   mounted () {
-    this.drawPdf(this.word)
+    setTimeout(() => this.drawPdf(this.word), 300)
   },
   methods: {
     save () {
       this.approved = true
-      this.$emit('save', { file: this.fileName, word: this.word, newWord: this.newWord })
+      this.$emit('save', { file: this.path, word: this.word, newWord: this.newWord })
     },
     async drawPdf (id) {
       if (!id) {
         return
       }
 
-      console.log('Using file', this.file)
-
-      const loadingTask = pdfjsLib.getDocument(this.file)
-      const pdf = await loadingTask.promise
+      const pdf = this.pdf
 
       // Load information from the first page.
       const word = this.word
