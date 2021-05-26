@@ -52,8 +52,7 @@ async function getTokenSilent (tokenRequest) {
     return await pca.acquireTokenSilent(tokenRequest)
   } catch (error) {
     console.log('Silent token acquisition failed, acquiring token using pop up')
-    const authCodeRequest = { ...this.authCodeUrlParams, ...tokenRequest }
-    return getTokenInteractive(authCodeRequest)
+    return getTokenInteractive(tokenRequest)
   }
 }
 
