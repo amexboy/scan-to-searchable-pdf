@@ -2,8 +2,8 @@ import { CryptoProvider, PublicClientApplication } from '@azure/msal-node'
 import axios from 'axios'
 import { setConfig, getConfig } from './db'
 
+const { gzip, gunzip } = require('zlib')
 const { BrowserWindow } = require('electron').remote
-// import { app, BrowserWindow, ipcMain } from 'electron'
 
 const MSAL_CONFIG = {
   auth: {
@@ -165,33 +165,51 @@ export async function list (path) {
 }
 
 export async function getJson (path) {
-  const url = await apiUrl(path)
-  const token = await getToken()
-  const headers = {
-    headers: {
-      'Authorization': `Bearer ${token.accessToken}`
-    }
-  }
-
-  return axios.get(url, headers)
-    .then(res => {
-      console.log('Response', res)
-      return res.data['@microsoft.graph.downloadUrl']
-    })
-    .then(downloadUrl => axios.get(downloadUrl))
-    .then(result => result.data)
-}
-
-export async function setJson (path, data) {
   const url = await apiUrl(path, 'content')
   const token = await getToken()
   const headers = {
     headers: {
       'Authorization': `Bearer ${token.accessToken}`
+    },
+    responseType: 'arraybuffer'
+  }
+
+  return axios.get(url, headers)
+    .then(async result => {
+      const firstChar = new Int8Array(result.data)[0]
+
+      if (['['.charCodeAt(0), '{'.charCodeAt(0)].includes(firstChar)) {
+        return JSON.parse(new TextDecoder('utf-8').decode(result.data))
+      }
+
+      const unzipped = await new Promise((resolve, reject) =>
+        gunzip(result.data, (err, res) => err ? reject(err) : resolve(res)))
+        .then(res => JSON.parse(res))
+
+      console.log('Unzipped Response', unzipped)
+      return unzipped
+    })
+}
+
+export async function setJson (path, data, compress) {
+  const url = await apiUrl(path, 'content')
+  const token = await getToken()
+
+  let upload = data
+  if (compress) {
+    const json = JSON.stringify(data)
+    const buffer = Buffer.from(json)
+
+    upload = await new Promise((resolve, reject) => gzip(buffer, (err, res) => err ? reject(err) : resolve(res)))
+  }
+
+  const headers = {
+    headers: {
+      'Authorization': `Bearer ${token.accessToken}`
     }
   }
 
-  return axios.put(url, data, headers)
+  return axios.put(url, upload, headers)
     .then(res => {
       console.log('Response', res)
       return res

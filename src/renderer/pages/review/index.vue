@@ -7,7 +7,7 @@
         :items="files"
         :search="search"
         :loading="loading"
-        item-key="name"
+        item-key="path"
         single-expand
         show-expand
         show-select

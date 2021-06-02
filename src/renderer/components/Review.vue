@@ -303,7 +303,7 @@ export default {
     },
     save () {
       this.saving = true
-      hasLock(this.file.path)
+      return hasLock(this.file.path)
         .then(res => {
           if (res) {
             return approveWords(this.file.path, this.pending)
@@ -367,12 +367,13 @@ export default {
             this.saveWord({ file: this.path, word: w, newWord: w.Text }) // .then(_ => this.removeFromWords(w))
           })
 
-          this.save().then(_ => {
-            this.saving = false
-            this.$dialog.notify.success(
-              `Approved all words aboove set confidence`
-            )
-          })
+          this.save()
+            .then(_ => {
+              this.saving = false
+              this.$dialog.notify.success(
+                `Approved all words aboove set confidence`
+              )
+            })
         } else {
           this.saving = false
         }

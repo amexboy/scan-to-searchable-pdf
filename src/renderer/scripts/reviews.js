@@ -34,12 +34,16 @@ export const flagForReview = async (filePath, flags, pages, extras) => {
     setJson(summaryKey, {
       extras,
       path: filePath,
-      flagsCount: flags.length
+      flagsCount: flags.length,
+      resultCompressed: true
     }),
 
     setJson(flaggsKey, flags),
 
-    setJson(pagesKey, pages)
+    new Promise(resolve => resultStore.update({ pagesKey }, { pagesKey, pages }, { upsert: true }, resolver(resolve))),
+
+    setJson(pagesKey, pages, true)
+
   ]))
 
   console.log('Flags uploaded succesfully', uploadResult)
@@ -66,13 +70,15 @@ export const getStoredResult = async filePath => {
   console.log('Stored result fileKey', fileKey)
 
   const storedPages = await new Promise(resolve => resultStore.find({ fileKey }, resolver(resolve)))
-  const storedFlags = await getFlags(filePath)
 
   if (storedPages.length > 0 && storedPages[0].pages.length > 0) {
-    return { pages: storedPages[0].pages, flagged: storedFlags }
+    return { pages: storedPages[0].pages }
   }
 
-  const pages = await getJson(fileKey).catch(_ => null) //, credentials, bucketName)
+  const pages = await getJson(fileKey).catch(err => {
+    console.log('Failed to result', err)
+    return null
+  })
 
   console.log('Found pages', pages)
 
