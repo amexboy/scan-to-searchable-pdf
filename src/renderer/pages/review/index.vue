@@ -125,6 +125,7 @@ export default {
       getFlagedFiles()
         .then(flagged => {
           console.log(flagged)
+          this.selected = [ ]
           this.flagged = flagged || []
           this.loading = false
           return flagged

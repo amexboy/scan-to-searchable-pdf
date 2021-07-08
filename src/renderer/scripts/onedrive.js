@@ -1,5 +1,5 @@
 import { CryptoProvider, PublicClientApplication } from '@azure/msal-node'
-import axios from 'axios'
+import axios from './axios'
 import { setConfig, getConfig } from './db'
 
 const { gzip, gunzip } = require('zlib')
@@ -142,10 +142,17 @@ async function listenForAuthCode (navigateUrl, authWindow) {
     })
   })
 }
-const apiUrl = async (path, resource) => {
+
+const apiResourceUri = async (path, resource) => {
   const base = await getConfig('onedrive_root', 'root')
 
-  return `https://graph.microsoft.com/v1.0/${base}${path ? ':/' + path : ''}${resource ? ':/' + resource : ''}`
+  return `/${base}${path ? ':/' + path : ''}${resource ? ':/' + resource : ''}`
+}
+
+const apiUrl = async (path, resource) => {
+  const uri = await apiResourceUri(path, resource)
+
+  return `https://graph.microsoft.com/v1.0${uri}`
 }
 
 export async function list (path) {
@@ -190,6 +197,32 @@ export async function getJson (path) {
       return unzipped
     })
 }
+
+export async function getJsonBatch (paths) {
+  return Promise.all(paths.map(getJson))
+}
+
+// export async function getJsonBatch (paths) {
+//   const url = 'https://graph.microsoft.com/v1.0/$batch'
+
+//   const token = await getToken()
+//   const headers = {
+//     headers: {
+//       'Authorization': `Bearer ${token.accessToken}`
+//     }
+//   }
+//   const requests = await Promise.all(
+//     paths.map(async p => ({ id: p, method: 'GET', url: await apiResourceUri(p, 'content') })))
+
+//   const data = { requests }
+//   console.log('Batch request', data)
+
+//   return axios.post(url, data, headers)
+//     .then(async result => {
+//       console.log(result)
+//       return result.data
+//     })
+// }
 
 export async function setJson (path, data, compress) {
   const url = await apiUrl(path, 'content')

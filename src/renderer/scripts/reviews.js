@@ -2,7 +2,7 @@
 import fs from 'fs'
 import { dirname, resolve } from 'path'
 import { generateResult } from '@/scripts/process_file'
-import { list, getToken, setJson, getJson, deleteFiles } from './onedrive'
+import { list, getToken, setJson, getJson, deleteFiles, getJsonBatch } from './onedrive'
 import { resolver, createDb, getOrSetConfig } from './db'
 const { app, remote } = require('electron')
 
@@ -59,10 +59,10 @@ export const getFlagedFiles = async () => {
     })
 
   console.log('Flagged objects', files)
+  const paths = files.map(f => f.name)
+    .map(key => `${FLAGGED_SUMMARY_PREFIX}/${key}`)
 
-  return Promise.all(
-    files.map(f => f.name)
-      .map(key => getJson(`${FLAGGED_SUMMARY_PREFIX}/${key}`)))
+  return paths.length === 0 ? [] : getJsonBatch(paths)
 }
 
 export const getStoredResult = async filePath => {
@@ -70,9 +70,10 @@ export const getStoredResult = async filePath => {
   console.log('Stored result fileKey', fileKey)
 
   const storedPages = await new Promise(resolve => resultStore.find({ fileKey }, resolver(resolve)))
+  const flagged = await getFlags(filePath)
 
   if (storedPages.length > 0 && storedPages[0].pages.length > 0) {
-    return { pages: storedPages[0].pages }
+    return { pages: storedPages[0].pages, flagged }
   }
 
   const pages = await getJson(fileKey).catch(err => {
@@ -85,7 +86,7 @@ export const getStoredResult = async filePath => {
   if (pages) {
     resultStore.update({ fileKey }, { fileKey, pages }, { upsert: true })
 
-    return { pages }
+    return { pages, flagged }
   }
   return null
 }
